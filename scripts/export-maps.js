@@ -17,18 +17,28 @@ async function main() {
   await Runtime.enable();
   fs.mkdirSync(OUT, {recursive: true});
 
+  // 补丁
   await Runtime.evaluate({
     expression: `try{Game_Event.prototype.setupParticles=function(){}}catch(e){}`,
     returnByValue: false
   });
 
+  // 获取地图 ID
   var r0 = await Runtime.evaluate({
     expression: `JSON.stringify((function(){var a=[];for(var i=1;i<$dataMapInfos.length;i++)if($dataMapInfos[i])a.push(i);return a})())`,
     returnByValue: false
   });
   var mapIds = JSON.parse(r0.result.value);
-  console.log('Total: ' + mapIds.length + ' maps');
+  console.log('Total: ' + mapIds.length + ' maps\n');
 
+  // 预加载 tileset 列表
+  var r1 = await Runtime.evaluate({
+    expression: `JSON.stringify((function(){var o={};for(var i=1;i<$dataTilesets.length;i++){var t=$dataTilesets[i];if(t)o[i]=t.tilesetNames;}return o;})())`,
+    returnByValue: false
+  });
+  var allTilesets = JSON.parse(r1.result.value);
+
+  // 创建全局 PIXI 应用
   await Runtime.evaluate({
     expression: `if(!window._xp){window._xp=new PIXI.Application({width:32,height:32,preserveDrawingBuffer:true,backgroundColor:0});window._xp.destroy=function(){}}`,
     returnByValue: false
@@ -36,6 +46,14 @@ async function main() {
 
   var sharp = require('sharp');
   var success = 0, fail = 0;
+  var baseDir = '';
+
+  // 先找游戏根目录
+  var r2 = await Runtime.evaluate({
+    expression: `typeof require!=='undefined'&&typeof process!=='undefined'?JSON.stringify({cwd:process.cwd(),hasFS:typeof require('fs').readFileSync==='function'}):'nw_not_ready'`,
+    returnByValue: false
+  });
+  console.log('NW.js:', r2.result.value);
 
   for (var i = 0; i < mapIds.length; i++) {
     var id = mapIds[i];
@@ -45,12 +63,15 @@ async function main() {
       var r = await Runtime.evaluate({
         expression: `
           (async function(){
-            var _saved = $dataMap;
             try {
-              DataManager.loadMapData(${id});
-              await new Promise(function(r){setTimeout(r,250);});
-              var map = $dataMap;
-              if(!map) return 'err:no_map';
+              // 不碰 $dataMap，直接读文件
+              var pad = String(${id}).padStart(3,'0');
+              var fs = require('fs');
+              var p = process.cwd() + '/www/data/Map' + pad + '.json';
+              if(!fs.existsSync(p)) return 'err:no_file_' + p;
+              var map = JSON.parse(fs.readFileSync(p,'utf8'));
+              if(!map||!map.data) return 'err:bad_data';
+
               var ts = $dataTilesets[map.tilesetId];
               if(!ts) return 'err:no_ts';
               var tw = map.width*48, th = map.height*48;
@@ -84,10 +105,8 @@ async function main() {
                 return b64||'err:empty';
               }
               var strips = Math.ceil(th/${MAX_H});
-              var r2 = strips<=1 ? doStrip(0) : JSON.stringify({s:Array.from({length:strips},function(_,s){return doStrip(s);}), sh:${MAX_H}, fh:th});
-              return r2;
+              return strips<=1 ? doStrip(0) : JSON.stringify({s:Array.from({length:strips},function(_,s){return doStrip(s);}), sh:${MAX_H}, fh:th});
             } catch(e) { return 'err:'+e.message; }
-            finally { $dataMap = _saved; }
           })()
         `,
         awaitPromise: true,
@@ -102,13 +121,12 @@ async function main() {
           var meta, tmpFiles = [];
           for(var s=0;s<d.s.length;s++) {
             var buf = Buffer.from(d.s[s],'base64');
-            var tmp = OUT + 't' + pad + '_' + s + '.png';
+            var tmp = OUT+'t'+pad+'_'+s+'.png';
             fs.writeFileSync(tmp,buf); tmpFiles.push(tmp);
             if(!meta) meta = await sharp(tmp).metadata();
           }
           var bg = await sharp({create:{width:meta.width,height:d.fh,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer();
-          var layers = tmpFiles.map(function(f,si){return{input:f,top:si*d.sh,left:0};});
-          var out = await sharp(bg).composite(layers).png().toBuffer();
+          var out = await sharp(bg).composite(tmpFiles.map(function(f,si){return{input:f,top:si*d.sh,left:0};})).png().toBuffer();
           fs.writeFileSync(OUT+'Map'+pad+'.png',out);
           tmpFiles.forEach(function(f){try{fs.unlinkSync(f);}catch(e){}});
           process.stdout.write((out.length/1024).toFixed(0)+'KB ✓\n');
@@ -118,14 +136,14 @@ async function main() {
         }
         success++;
       } else {
-        process.stdout.write('✗ ' + (v || 'null') + '\n');
+        process.stdout.write('✗ ' + v + '\n');
         fail++;
       }
     } catch(e) {
       process.stdout.write('Error: ' + e.message + '\n');
       fail++;
     }
-    await sleep(50);
+    await sleep(30);
   }
 
   console.log('\nDone! ' + success + ' OK, ' + fail + ' failed');
