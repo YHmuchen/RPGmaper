@@ -403,16 +403,6 @@ document.getElementById('exportTransferBtn').addEventListener('click', function(
   document.getElementById('status').textContent = '已导出 transfers.json';
 });
 
-document.getElementById('calcOffsetBtn').addEventListener('click', function() {
-  const div = document.getElementById('calcResult');
-  if (selections.length < 2) {
-    div.textContent = '需要至少选择 2 个格子';
-    return;
-  }
-  div.textContent = selections.map(function(s) {
-    return '(' + s.absX + ',' + s.absY + ')' + (s.mapId ? ' Map' + s.mapId + '[' + s.tileX + ',' + s.tileY + ']' : '');
-  }).join(' → ');
-});
 
 function loadMap(mapId) {
   var f = mapId === 'seamless' ? 'seamless.png' : 'Map' + String(mapId).padStart(4, '0') + '.png';
