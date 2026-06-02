@@ -513,14 +513,13 @@ function rebuildDropdown() {
 var allMapIds = MAP_LIST.map(function(m){return m.id;});
 var defaultMap = 3;
 
-// 如果 watch-game 记录了已探索地图就用它，否则 fallback
+// watch-game 记录的游戏当前地图优先
+if (typeof CURRENT_MAP !== 'undefined' && CURRENT_MAP > 0) {
+  defaultMap = CURRENT_MAP;
+}
 if (visitedMaps.size === 0) {
   visitedMaps.add(3);
-  // 自动开上帝模式（初次使用没有任何记录）
   document.getElementById('godMode').checked = true;
-} else {
-  // 有记录 → 默认用第一个已探索地图
-  defaultMap = Array.from(visitedMaps).sort(function(a,b){return a-b})[0];
 }
 try { localStorage.setItem('rpgmaper_visited', JSON.stringify(Array.from(visitedMaps))); } catch(e) {}
 

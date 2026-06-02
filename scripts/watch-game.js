@@ -139,6 +139,7 @@ function saveData() {
   var content = 'var VISITED_MAPS = ' + JSON.stringify(arr) + ';\n';
   content += 'var USED_TRANSFERS = ' + JSON.stringify(usedTransfers) + ';\n';
   content += 'var WATCH_TRANSFERS = ' + JSON.stringify(TRANSFERS) + ';\n';
+  if (prevMapId > 0) content += 'var CURRENT_MAP = ' + prevMapId + ';\n';
   fs.writeFileSync(VISITED_FILE, content);
 }
 
