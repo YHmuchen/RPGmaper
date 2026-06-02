@@ -2,12 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const PROJECT = path.resolve(__dirname, '..');
-const MAPS_SRC = process.argv[2] || 'C:/Users/Muchen/maps';  // 地图 PNG 源目录
-const DATA = JSON.parse(fs.readFileSync(PROJECT + '/maps/connections.json', 'utf8'));
-const TILES = JSON.parse(fs.readFileSync(PROJECT + '/maps/mapdata_with_names.json', 'utf8'));
+const MAPS_SRC = process.argv[2];
 const TILE = 48;
 
 async function main() {
+  var DATA = JSON.parse(fs.readFileSync(PROJECT + '/maps/connections.json', 'utf8'));
+  var TILES = JSON.parse(fs.readFileSync(PROJECT + '/maps/mapdata_with_names.json', 'utf8'));
   var offsets = DATA.offsets;
   var ids = Object.keys(offsets).map(Number);
 

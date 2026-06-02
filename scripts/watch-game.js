@@ -40,6 +40,10 @@ async function main() {
 
   const {Runtime} = client;
   await Runtime.enable();
+  client.on('disconnect', function() {
+    console.error('\nDebug connection lost. Stopping watcher.');
+    process.exit(1);
+  });
   console.log('Listening for map changes...\n');
 
   // 初始检测（等待游戏进入地图场景）
@@ -123,7 +127,12 @@ async function main() {
         prevX = x;
         prevY = y;
       }
-    } catch(e) {}
+    } catch(e) {
+      if (e.message && e.message.indexOf('WebSocket') >= 0) {
+        console.error('\nGame disconnected. Stopping watcher.');
+        process.exit(1);
+      }
+    }
   }, 1500);
 }
 
@@ -139,11 +148,15 @@ function findTransfer(fromMap, toMap, toX, toY) {
       return t;
     }
   }
-  // 放松匹配：只匹配目标地图
+  // 放松匹配：选与玩家前一帧位置最近的传送格
+  var best = null, bestDist = Infinity;
   for (var i = 0; i < tdata.length; i++) {
-    if (tdata[i].tid === toMap) return tdata[i];
+    if (tdata[i].tid === toMap) {
+      var d = Math.abs(tdata[i].fx - prevX) + Math.abs(tdata[i].fy - prevY);
+      if (d < bestDist) { bestDist = d; best = tdata[i]; }
+    }
   }
-  return null;
+  return best;
 }
 
 function recordVisit(id) {
