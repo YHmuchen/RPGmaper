@@ -29,16 +29,7 @@ async function main() {
     returnByValue: false
   });
   var mapIds = JSON.parse(r0.result.value);
-  console.log('Total: ' + mapIds.length + ' maps');
-
-  // 先切到首张地图，初始化 tileset 解密系统
-  console.log('Initializing renderer (teleport to Map' + mapIds[0] + ')...');
-  await Runtime.evaluate({
-    expression: `$gamePlayer.reserveTransfer(${mapIds[0]}, 0, 0, 0, 0); $gamePlayer.requestMapReload()`,
-    returnByValue: false
-  });
-  await sleep(2000);
-  console.log('Ready\n');
+  console.log('Total: ' + mapIds.length + ' maps\n');
 
   // 预加载 tileset 列表
   var r1 = await Runtime.evaluate({
@@ -73,10 +64,7 @@ async function main() {
         expression: `
           (async function(){
             try {
-              // 先调 DataManager 预热 tileset 缓存
-              DataManager.loadMapData(${id});
-              await new Promise(function(r){setTimeout(r,300);});
-              // 从磁盘读地图数据（不依赖$dataMap）
+              // 从磁盘读地图数据（不碰$dataMap）
               var pad = String(${id}).padStart(3,'0');
               var fs = require('fs');
               var p = process.cwd().replace(/\\\\/g,'/') + '/data/Map' + pad + '.json';
