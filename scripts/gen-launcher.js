@@ -29,29 +29,29 @@ if (!injectExe || !mzHookDll) {
 var out = [];
 out.push('@echo off');
 out.push('chcp 65001 >nul');
-out.push('title RPGmaper - 游戏 + mtool + CDP');
+out.push('title RPGmaper - Game + mtool + CDP');
 out.push('');
-out.push('echo [1/4] 配置 CDP 远程调试端口...');
+out.push('echo [1/4] Enable CDP remote debug port...');
 out.push('cd /d "' + gameDir + '"');
 out.push('if exist "package.json" (');
 out.push('  copy "package.json" "package.json.nocdp" /Y >nul');
 out.push('  node "' + PROJECT + '\\scripts\\patch-cdp.js" "' + gameDir + '"');
 out.push(')');
 out.push('');
-out.push('echo [2/4] 启动游戏...');
+out.push('echo [2/4] Start game...');
 out.push('start "" "' + injectExe + '" "' + gameDir + '\\Game.exe" "' + mzHookDll + '"');
 out.push('');
 if (nwExe) {
-  out.push('echo [3/4] 启动 mtool 界面...');
+  out.push('echo [3/4] Start mtool...');
   out.push('start "" "' + nwExe + '" "' + nwArg + '"');
   out.push('');
 }
-out.push('echo [4/4] 启动地图监听...');
+out.push('echo [4/4] Start map watcher...');
 out.push('cd /d "' + PROJECT + '"');
 out.push('node scripts\\watch-game.js');
 out.push('');
 out.push('echo.');
-out.push('echo 游戏关闭后，执行 restore-cdp.bat 恢复 package.json');
+out.push('echo After closing the game, run restore-cdp.bat to restore package.json');
 out.push('pause');
 
 fs.writeFileSync(path.resolve(PROJECT, 'launch.bat'), out.join('\r\n'));
