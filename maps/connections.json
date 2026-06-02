@@ -1,0 +1,2952 @@
+{
+  "offsets": {
+    "2": {
+      "x": 0,
+      "y": 0
+    },
+    "3": {
+      "x": -29,
+      "y": -128
+    },
+    "5": {
+      "x": -17,
+      "y": -11
+    },
+    "7": {
+      "x": -2,
+      "y": -8
+    },
+    "10": {
+      "x": -33,
+      "y": 16
+    },
+    "25": {
+      "x": 13,
+      "y": -21
+    },
+    "26": {
+      "x": -61,
+      "y": 2
+    },
+    "27": {
+      "x": 15,
+      "y": -27
+    },
+    "28": {
+      "x": -2,
+      "y": -10
+    },
+    "29": {
+      "x": -13,
+      "y": -1
+    },
+    "30": {
+      "x": -7,
+      "y": -1
+    },
+    "31": {
+      "x": -37,
+      "y": -25
+    },
+    "33": {
+      "x": 7,
+      "y": -10
+    },
+    "35": {
+      "x": 25,
+      "y": -30
+    },
+    "38": {
+      "x": 26,
+      "y": -36
+    },
+    "40": {
+      "x": 6,
+      "y": -16
+    },
+    "43": {
+      "x": 1,
+      "y": -56
+    },
+    "44": {
+      "x": 2,
+      "y": -31
+    },
+    "53": {
+      "x": -21,
+      "y": -49
+    },
+    "55": {
+      "x": 6,
+      "y": -16
+    },
+    "66": {
+      "x": -23,
+      "y": -49
+    },
+    "68": {
+      "x": -33,
+      "y": -17
+    },
+    "75": {
+      "x": -9,
+      "y": 1
+    },
+    "76": {
+      "x": -33,
+      "y": -25
+    },
+    "83": {
+      "x": 6,
+      "y": -50
+    },
+    "91": {
+      "x": -3,
+      "y": -39
+    },
+    "93": {
+      "x": -2,
+      "y": -31
+    },
+    "107": {
+      "x": -21,
+      "y": -29
+    },
+    "109": {
+      "x": -26,
+      "y": -13
+    },
+    "116": {
+      "x": 21,
+      "y": -21
+    },
+    "117": {
+      "x": 9,
+      "y": -18
+    },
+    "118": {
+      "x": 16,
+      "y": -30
+    },
+    "120": {
+      "x": -56,
+      "y": -50
+    },
+    "137": {
+      "x": -34,
+      "y": -44
+    },
+    "138": {
+      "x": -2,
+      "y": -25
+    },
+    "139": {
+      "x": -7,
+      "y": -1
+    },
+    "144": {
+      "x": -1,
+      "y": -33
+    },
+    "145": {
+      "x": 15,
+      "y": 30
+    },
+    "148": {
+      "x": 10,
+      "y": -39
+    },
+    "149": {
+      "x": -9,
+      "y": 31
+    },
+    "152": {
+      "x": -8,
+      "y": -46
+    },
+    "154": {
+      "x": 6,
+      "y": -14
+    },
+    "157": {
+      "x": -26,
+      "y": -37
+    },
+    "251": {
+      "x": -29,
+      "y": 4
+    },
+    "252": {
+      "x": -4,
+      "y": -37
+    },
+    "260": {
+      "x": -61,
+      "y": 2
+    },
+    "262": {
+      "x": 1,
+      "y": -37
+    },
+    "264": {
+      "x": -17,
+      "y": -6
+    },
+    "268": {
+      "x": -15,
+      "y": -5
+    },
+    "270": {
+      "x": 1,
+      "y": -43
+    },
+    "271": {
+      "x": -7,
+      "y": -36
+    },
+    "273": {
+      "x": 0,
+      "y": -31
+    },
+    "274": {
+      "x": 1,
+      "y": -35
+    },
+    "280": {
+      "x": -4,
+      "y": -38
+    },
+    "281": {
+      "x": 0,
+      "y": -36
+    }
+  },
+  "connections": [
+    {
+      "mapId": 2,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 7,
+          "toX": 2,
+          "toY": 8,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 1,
+          "toMapId": 273,
+          "toX": 0,
+          "toY": 32,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 1,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 45,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 1,
+          "toMapId": 75,
+          "toX": 9,
+          "toY": 0,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 1,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 45,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 1,
+          "toMapId": 68,
+          "toX": 33,
+          "toY": 18,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 1,
+          "toMapId": 68,
+          "toX": 24,
+          "toY": 10,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 3,
+      "transfers": [
+        {
+          "eventId": 84,
+          "fromX": 20,
+          "fromY": 5,
+          "toMapId": 3,
+          "toX": 31,
+          "toY": 37,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 5,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 17,
+          "fromY": 13,
+          "toMapId": 264,
+          "toX": 17,
+          "toY": 8,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 7,
+      "transfers": [
+        {
+          "eventId": 6,
+          "fromX": 2,
+          "fromY": 11,
+          "toMapId": 5,
+          "toX": 17,
+          "toY": 14,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 10,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 7,
+          "fromY": 12,
+          "toMapId": 26,
+          "toX": 36,
+          "toY": 27,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 16,
+      "transfers": [
+        {
+          "eventId": 9,
+          "fromX": 1,
+          "fromY": 32,
+          "toMapId": 274,
+          "toX": 9,
+          "toY": 11,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 25,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 18,
+          "toY": 16,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 20,
+          "toY": 16,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 25,
+          "toY": 16,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 26,
+      "transfers": [
+        {
+          "eventId": 4,
+          "fromX": 37,
+          "fromY": 15,
+          "toMapId": 251,
+          "toX": 5,
+          "toY": 11,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 9,
+          "fromX": 36,
+          "fromY": 26,
+          "toMapId": 10,
+          "toX": 8,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 16,
+          "fromX": 30,
+          "fromY": 33,
+          "toMapId": 26,
+          "toX": 2,
+          "toY": 24,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 27,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 23,
+          "toY": 16,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 27,
+          "toY": 16,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 28,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 9,
+          "fromY": 12,
+          "toMapId": 109,
+          "toX": 31,
+          "toY": 99,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 9,
+          "fromY": 12,
+          "toMapId": 109,
+          "toX": 31,
+          "toY": 90,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 29,
+      "transfers": [
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 8,
+          "toY": 20,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 10,
+          "toY": 7,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 144,
+          "toX": 12,
+          "toY": 5,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 30,
+      "transfers": [
+        {
+          "eventId": 2,
+          "fromX": 1,
+          "fromY": 0,
+          "toMapId": 29,
+          "toX": 7,
+          "toY": 0,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 31,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 34,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 34,
+          "direction": 4,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 33,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 109,
+          "toX": 31,
+          "toY": 99,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 28,
+          "toX": 9,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 34,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 157,
+          "toX": 40,
+          "toY": 20,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 35,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 152,
+          "toX": 24,
+          "toY": 22,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 91,
+          "toX": 36,
+          "toY": 13,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 91,
+          "toX": 36,
+          "toY": 13,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 38,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 91,
+          "toX": 20,
+          "toY": 10,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 91,
+          "toX": 31,
+          "toY": 11,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 91,
+          "toX": 7,
+          "toY": 10,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 91,
+          "toX": 35,
+          "toY": 10,
+          "direction": 4,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 39,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 62,
+          "toY": 33,
+          "direction": 6,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 40,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 120,
+          "toX": 62,
+          "toY": 34,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 120,
+          "toX": 33,
+          "toY": 9,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 43,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 13,
+          "fromY": 11,
+          "toMapId": 157,
+          "toX": 40,
+          "toY": 51,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 14,
+          "fromY": 12,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 6,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 13,
+          "fromY": 10,
+          "toMapId": 157,
+          "toX": 40,
+          "toY": 51,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 11,
+          "fromX": 12,
+          "fromY": 24,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 4,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 12,
+          "fromX": 13,
+          "fromY": 24,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 4,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 13,
+          "fromX": 14,
+          "fromY": 24,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 4,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 44,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 3,
+          "toX": 31,
+          "toY": 97,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 53,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 45,
+          "fromY": 25,
+          "toMapId": 118,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 31,
+          "fromY": 5,
+          "toMapId": 281,
+          "toX": 23,
+          "toY": 4,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 31,
+          "fromY": 5,
+          "toMapId": 281,
+          "toX": 24,
+          "toY": 4,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 19,
+          "fromY": 9,
+          "toMapId": 281,
+          "toX": 21,
+          "toY": 4,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 45,
+          "fromY": 26,
+          "toMapId": 118,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 45,
+          "fromY": 26,
+          "toMapId": 118,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 54,
+      "transfers": [
+        {
+          "eventId": 6,
+          "fromX": 6,
+          "fromY": 2,
+          "toMapId": 281,
+          "toX": 26,
+          "toY": 10,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 55,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 6,
+          "toMapId": 157,
+          "toX": 40,
+          "toY": 27,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 6,
+          "toMapId": 157,
+          "toX": 40,
+          "toY": 18,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 66,
+      "transfers": [
+        {
+          "eventId": 2,
+          "fromX": 31,
+          "fromY": 41,
+          "toMapId": 2,
+          "toX": 0,
+          "toY": 2,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 21,
+          "fromY": 39,
+          "toMapId": 107,
+          "toX": 19,
+          "toY": 19,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 21,
+          "fromY": 39,
+          "toMapId": 107,
+          "toX": 19,
+          "toY": 19,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 21,
+          "fromX": 20,
+          "fromY": 39,
+          "toMapId": 107,
+          "toX": 19,
+          "toY": 19,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 21,
+          "fromX": 20,
+          "fromY": 39,
+          "toMapId": 107,
+          "toX": 19,
+          "toY": 19,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 22,
+          "fromY": 39,
+          "toMapId": 107,
+          "toX": 19,
+          "toY": 19,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 22,
+          "fromY": 39,
+          "toMapId": 107,
+          "toX": 19,
+          "toY": 19,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 68,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 40,
+          "fromY": 42,
+          "toMapId": 68,
+          "toX": 31,
+          "toY": 93,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 40,
+          "fromY": 42,
+          "toMapId": 68,
+          "toX": 31,
+          "toY": 93,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 10,
+          "fromX": 55,
+          "fromY": 62,
+          "toMapId": 145,
+          "toX": 7,
+          "toY": 15,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 22,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 22,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 23,
+          "fromX": 23,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 23,
+          "fromX": 23,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 24,
+          "fromX": 24,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 24,
+          "fromX": 24,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 25,
+          "fromX": 25,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 25,
+          "fromX": 25,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 26,
+          "fromX": 26,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 26,
+          "fromX": 26,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 35,
+          "fromX": 33,
+          "fromY": 16,
+          "toMapId": 139,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 35,
+          "fromX": 33,
+          "fromY": 16,
+          "toMapId": 30,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 36,
+          "fromX": 45,
+          "fromY": 16,
+          "toMapId": 139,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 36,
+          "fromX": 45,
+          "fromY": 16,
+          "toMapId": 30,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 75,
+          "fromX": 15,
+          "fromY": 41,
+          "toMapId": 68,
+          "toX": 15,
+          "toY": 50,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 92,
+          "fromX": 60,
+          "fromY": 47,
+          "toMapId": 109,
+          "toX": 54,
+          "toY": 53,
+          "direction": 4,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 76,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 7,
+          "toY": 18,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 7,
+          "toY": 33,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 137,
+          "toX": 7,
+          "toY": 33,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 83,
+      "transfers": [
+        {
+          "eventId": 3,
+          "fromX": 10,
+          "fromY": 9,
+          "toMapId": 281,
+          "toX": 5,
+          "toY": 12,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 13,
+          "fromY": 18,
+          "toMapId": 91,
+          "toX": 20,
+          "toY": 9,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 13,
+          "fromY": 18,
+          "toMapId": 91,
+          "toX": 20,
+          "toY": 9,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 91,
+      "transfers": [
+        {
+          "eventId": 3,
+          "fromX": 38,
+          "fromY": 10,
+          "toMapId": 38,
+          "toX": 9,
+          "toY": 7,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 3,
+          "fromX": 38,
+          "fromY": 10,
+          "toMapId": 38,
+          "toX": 9,
+          "toY": 7,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 36,
+          "fromY": 15,
+          "toMapId": 35,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 36,
+          "fromY": 15,
+          "toMapId": 35,
+          "toX": 4,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 36,
+          "fromY": 15,
+          "toMapId": 35,
+          "toX": 4,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 12,
+          "fromX": 20,
+          "fromY": 7,
+          "toMapId": 83,
+          "toX": 11,
+          "toY": 18,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 12,
+          "fromX": 20,
+          "fromY": 7,
+          "toMapId": 83,
+          "toX": 11,
+          "toY": 18,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 12,
+          "fromX": 20,
+          "fromY": 7,
+          "toMapId": 83,
+          "toX": 11,
+          "toY": 18,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 18,
+          "fromX": 38,
+          "fromY": 11,
+          "toMapId": 38,
+          "toX": 9,
+          "toY": 7,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 18,
+          "fromX": 38,
+          "fromY": 11,
+          "toMapId": 38,
+          "toX": 9,
+          "toY": 7,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 93,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 152,
+          "toX": 26,
+          "toY": 16,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 107,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 19,
+          "fromY": 23,
+          "toMapId": 107,
+          "toX": 30,
+          "toY": 30,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 27,
+          "fromX": 19,
+          "fromY": 18,
+          "toMapId": 66,
+          "toX": 21,
+          "toY": 37,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 109,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 40,
+          "fromY": 42,
+          "toMapId": 109,
+          "toX": 31,
+          "toY": 93,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 10,
+          "fromX": 55,
+          "fromY": 62,
+          "toMapId": 145,
+          "toX": 7,
+          "toY": 15,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 21,
+          "fromX": 25,
+          "fromY": 44,
+          "toMapId": 149,
+          "toX": 8,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 22,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 23,
+          "fromX": 23,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 24,
+          "fromX": 24,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 25,
+          "fromX": 25,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 26,
+          "fromX": 26,
+          "fromY": 4,
+          "toMapId": 137,
+          "toX": 34,
+          "toY": 46,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 32,
+          "fromX": 37,
+          "fromY": 73,
+          "toMapId": 109,
+          "toX": 53,
+          "toY": 53,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 35,
+          "fromX": 33,
+          "fromY": 16,
+          "toMapId": 139,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 36,
+          "fromX": 45,
+          "fromY": 16,
+          "toMapId": 139,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 88,
+          "fromX": 34,
+          "fromY": 64,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 11,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 92,
+          "fromX": 60,
+          "fromY": 47,
+          "toMapId": 109,
+          "toX": 54,
+          "toY": 53,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 102,
+          "fromX": 15,
+          "fromY": 41,
+          "toMapId": 109,
+          "toX": 22,
+          "toY": 50,
+          "direction": 6,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 116,
+      "transfers": [
+        {
+          "eventId": 11,
+          "fromX": 5,
+          "fromY": 16,
+          "toMapId": 117,
+          "toX": 16,
+          "toY": 13,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 12,
+          "fromX": 5,
+          "fromY": 17,
+          "toMapId": 117,
+          "toX": 16,
+          "toY": 14,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 13,
+          "fromX": 9,
+          "fromY": 27,
+          "toMapId": 157,
+          "toX": 56,
+          "toY": 42,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 8,
+          "fromY": 4,
+          "toMapId": 157,
+          "toX": 40,
+          "toY": 51,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 117,
+      "transfers": [
+        {
+          "eventId": 29,
+          "fromX": 18,
+          "fromY": 13,
+          "toMapId": 116,
+          "toX": 7,
+          "toY": 16,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 30,
+          "fromX": 18,
+          "fromY": 14,
+          "toMapId": 116,
+          "toX": 7,
+          "toY": 17,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 31,
+          "fromX": 13,
+          "fromY": 23,
+          "toMapId": 157,
+          "toX": 48,
+          "toY": 42,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 125,
+      "transfers": [
+        {
+          "eventId": 6,
+          "fromX": 10,
+          "fromY": 10,
+          "toMapId": 66,
+          "toX": 20,
+          "toY": 26,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 6,
+          "fromX": 10,
+          "fromY": 10,
+          "toMapId": 125,
+          "toX": 6,
+          "toY": 15,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 7,
+          "fromX": 8,
+          "fromY": 24,
+          "toMapId": 51,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 137,
+      "transfers": [
+        {
+          "eventId": 17,
+          "fromX": 34,
+          "fromY": 48,
+          "toMapId": 109,
+          "toX": 26,
+          "toY": 17,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 34,
+          "fromY": 48,
+          "toMapId": 109,
+          "toX": 33,
+          "toY": 17,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 34,
+          "fromY": 48,
+          "toMapId": 68,
+          "toX": 24,
+          "toY": 8,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 34,
+          "fromY": 48,
+          "toMapId": 68,
+          "toX": 24,
+          "toY": 8,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 18,
+          "fromX": 9,
+          "fromY": 19,
+          "toMapId": 76,
+          "toX": 8,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 18,
+          "fromX": 9,
+          "fromY": 19,
+          "toMapId": 76,
+          "toX": 8,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 19,
+          "fromX": 9,
+          "fromY": 20,
+          "toMapId": 76,
+          "toX": 8,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 19,
+          "fromX": 9,
+          "fromY": 20,
+          "toMapId": 76,
+          "toX": 8,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 4,
+          "fromY": 19,
+          "toMapId": 31,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 4,
+          "fromY": 19,
+          "toMapId": 31,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 31,
+          "fromX": 29,
+          "fromY": 32,
+          "toMapId": 31,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 31,
+          "fromX": 29,
+          "fromY": 32,
+          "toMapId": 31,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 32,
+          "fromX": 39,
+          "fromY": 32,
+          "toMapId": 31,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 32,
+          "fromX": 39,
+          "fromY": 32,
+          "toMapId": 31,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 45,
+          "fromX": 34,
+          "fromY": 31,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 11,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 139,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 109,
+          "toX": 33,
+          "toY": 18,
+          "direction": 4,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 144,
+      "transfers": [
+        {
+          "eventId": 8,
+          "fromX": 10,
+          "fromY": 6,
+          "toMapId": 262,
+          "toX": 9,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 8,
+          "fromX": 10,
+          "fromY": 6,
+          "toMapId": 262,
+          "toX": 9,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 8,
+          "fromX": 10,
+          "fromY": 6,
+          "toMapId": 274,
+          "toX": 8,
+          "toY": 10,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 8,
+          "fromX": 10,
+          "fromY": 6,
+          "toMapId": 138,
+          "toX": 7,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 15,
+          "fromX": 4,
+          "fromY": 5,
+          "toMapId": 280,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 34,
+          "fromX": 9,
+          "fromY": 5,
+          "toMapId": 138,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 145,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 7,
+          "fromY": 17,
+          "toMapId": 68,
+          "toX": 55,
+          "toY": 63,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 2,
+          "fromX": 7,
+          "fromY": 3,
+          "toMapId": 109,
+          "toX": 55,
+          "toY": 63,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 148,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 281,
+          "toX": 18,
+          "toY": 4,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 53,
+          "toX": 31,
+          "toY": 10,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 53,
+          "toX": 31,
+          "toY": 10,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 53,
+          "toX": 31,
+          "toY": 10,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 53,
+          "toX": 31,
+          "toY": 10,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 152,
+      "transfers": [
+        {
+          "eventId": 7,
+          "fromX": 13,
+          "fromY": 14,
+          "toMapId": 91,
+          "toX": 8,
+          "toY": 7,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 26,
+          "fromY": 16,
+          "toMapId": 152,
+          "toX": 9,
+          "toY": 10,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 20,
+          "fromX": 37,
+          "fromY": 8,
+          "toMapId": 93,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 26,
+          "fromX": 22,
+          "fromY": 37,
+          "toMapId": 154,
+          "toX": 8,
+          "toY": 5,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 26,
+          "fromX": 22,
+          "fromY": 37,
+          "toMapId": 154,
+          "toX": 8,
+          "toY": 5,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 27,
+          "fromX": 27,
+          "fromY": 24,
+          "toMapId": 152,
+          "toX": 22,
+          "toY": 31,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 39,
+          "fromX": 24,
+          "fromY": 12,
+          "toMapId": 152,
+          "toX": 21,
+          "toY": 22,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 42,
+          "fromX": 30,
+          "fromY": 27,
+          "toMapId": 152,
+          "toX": 22,
+          "toY": 36,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 154,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 0,
+          "fromY": 0,
+          "toMapId": 152,
+          "toX": 22,
+          "toY": 36,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 157,
+      "transfers": [
+        {
+          "eventId": 11,
+          "fromX": 37,
+          "fromY": 16,
+          "toMapId": 157,
+          "toX": 26,
+          "toY": 1,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 14,
+          "fromX": 28,
+          "fromY": 40,
+          "toMapId": 138,
+          "toX": 6,
+          "toY": 4,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 15,
+          "fromX": 48,
+          "fromY": 41,
+          "toMapId": 117,
+          "toX": 13,
+          "toY": 22,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 16,
+          "fromX": 56,
+          "fromY": 41,
+          "toMapId": 116,
+          "toX": 9,
+          "toY": 25,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 31,
+          "fromX": 73,
+          "fromY": 2,
+          "toMapId": 55,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 74,
+          "fromX": 43,
+          "fromY": 53,
+          "toMapId": 2,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 74,
+          "fromX": 43,
+          "fromY": 53,
+          "toMapId": 144,
+          "toX": 1,
+          "toY": 32,
+          "direction": 6,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 251,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 5,
+          "fromY": 14,
+          "toMapId": 26,
+          "toX": 37,
+          "toY": 16,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 5,
+          "fromY": 14,
+          "toMapId": 260,
+          "toX": 37,
+          "toY": 16,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 5,
+          "fromY": 14,
+          "toMapId": 260,
+          "toX": 37,
+          "toY": 16,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 4,
+          "fromX": 19,
+          "fromY": 8,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 11,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 6,
+          "fromX": 22,
+          "fromY": 3,
+          "toMapId": 264,
+          "toX": 10,
+          "toY": 13,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 6,
+          "fromX": 22,
+          "fromY": 3,
+          "toMapId": 268,
+          "toX": 8,
+          "toY": 12,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 6,
+          "fromX": 22,
+          "fromY": 3,
+          "toMapId": 264,
+          "toX": 10,
+          "toY": 13,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 7,
+          "fromX": 23,
+          "fromY": 3,
+          "toMapId": 264,
+          "toX": 10,
+          "toY": 13,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 7,
+          "fromX": 23,
+          "fromY": 3,
+          "toMapId": 268,
+          "toX": 8,
+          "toY": 12,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 7,
+          "fromX": 23,
+          "fromY": 3,
+          "toMapId": 264,
+          "toX": 10,
+          "toY": 13,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 252,
+      "transfers": [
+        {
+          "eventId": 2,
+          "fromX": 9,
+          "fromY": 5,
+          "toMapId": 251,
+          "toX": 6,
+          "toY": 9,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 4,
+          "fromX": 13,
+          "fromY": 2,
+          "toMapId": 270,
+          "toX": 8,
+          "toY": 8,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 4,
+          "fromX": 13,
+          "fromY": 2,
+          "toMapId": 270,
+          "toX": 8,
+          "toY": 13,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 3,
+          "fromY": 5,
+          "toMapId": 271,
+          "toX": 6,
+          "toY": 4,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 15,
+          "fromX": 14,
+          "fromY": 4,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 11,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 260,
+      "transfers": [
+        {
+          "eventId": 4,
+          "fromX": 37,
+          "fromY": 15,
+          "toMapId": 251,
+          "toX": 5,
+          "toY": 11,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 9,
+          "fromY": 32,
+          "toMapId": 260,
+          "toX": 14,
+          "toY": 32,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 26,
+          "fromY": 38,
+          "toMapId": 281,
+          "toX": 5,
+          "toY": 7,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 262,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 12,
+          "toMapId": 274,
+          "toX": 8,
+          "toY": 10,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 12,
+          "toMapId": 273,
+          "toX": 12,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 12,
+          "toMapId": 144,
+          "toX": 10,
+          "toY": 8,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 264,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 10,
+          "fromY": 16,
+          "toMapId": 251,
+          "toX": 22,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 3,
+          "fromX": 10,
+          "fromY": 5,
+          "toMapId": 252,
+          "toX": 9,
+          "toY": 15,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 3,
+          "fromX": 10,
+          "fromY": 5,
+          "toMapId": 252,
+          "toX": 9,
+          "toY": 7,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 268,
+      "transfers": [
+        {
+          "eventId": 3,
+          "fromX": 8,
+          "fromY": 12,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 6,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 270,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 6,
+          "toMapId": 252,
+          "toX": 9,
+          "toY": 13,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 6,
+          "toMapId": 26,
+          "toX": 36,
+          "toY": 27,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 6,
+          "toMapId": 252,
+          "toX": 9,
+          "toY": 5,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 271,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 8,
+          "fromY": 4,
+          "toMapId": 252,
+          "toX": 5,
+          "toY": 5,
+          "direction": 6,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 273,
+      "transfers": [
+        {
+          "eventId": 8,
+          "fromX": 10,
+          "fromY": 6,
+          "toMapId": 262,
+          "toX": 9,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 15,
+          "fromX": 4,
+          "fromY": 5,
+          "toMapId": 280,
+          "toX": 8,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 37,
+          "fromX": 6,
+          "fromY": 12,
+          "toMapId": 2,
+          "toX": 7,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 57,
+          "fromX": 14,
+          "fromY": 6,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 11,
+          "direction": 2,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 274,
+      "transfers": [
+        {
+          "eventId": 1,
+          "fromX": 9,
+          "fromY": 10,
+          "toMapId": 262,
+          "toX": 9,
+          "toY": 12,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 8,
+          "fromX": 9,
+          "fromY": 13,
+          "toMapId": 138,
+          "toX": 7,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        }
+      ]
+    },
+    {
+      "mapId": 281,
+      "transfers": [
+        {
+          "eventId": 5,
+          "fromX": 14,
+          "fromY": 26,
+          "toMapId": 30,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 14,
+          "fromY": 26,
+          "toMapId": 33,
+          "toX": 7,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 14,
+          "fromY": 26,
+          "toMapId": 152,
+          "toX": 22,
+          "toY": 36,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 14,
+          "fromY": 26,
+          "toMapId": 40,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 14,
+          "fromY": 26,
+          "toMapId": 66,
+          "toX": 37,
+          "toY": 39,
+          "direction": 4,
+          "fadeType": 0
+        },
+        {
+          "eventId": 5,
+          "fromX": 14,
+          "fromY": 26,
+          "toMapId": 55,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 9,
+          "fromX": 19,
+          "fromY": 9,
+          "toMapId": 273,
+          "toX": 12,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 10,
+          "fromX": 5,
+          "fromY": 11,
+          "toMapId": 93,
+          "toX": 7,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 12,
+          "fromX": 5,
+          "fromY": 6,
+          "toMapId": 252,
+          "toX": 9,
+          "toY": 7,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 13,
+          "fromX": 10,
+          "fromY": 6,
+          "toMapId": 33,
+          "toX": 8,
+          "toY": 0,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 14,
+          "fromX": 5,
+          "fromY": 16,
+          "toMapId": 138,
+          "toX": 7,
+          "toY": 5,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 15,
+          "fromX": 5,
+          "fromY": 21,
+          "toMapId": 144,
+          "toX": 1,
+          "toY": 32,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 15,
+          "fromX": 5,
+          "fromY": 21,
+          "toMapId": 138,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 16,
+          "fromX": 10,
+          "fromY": 11,
+          "toMapId": 44,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 17,
+          "fromX": 10,
+          "fromY": 16,
+          "toMapId": 55,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 18,
+          "fromX": 10,
+          "fromY": 21,
+          "toMapId": 144,
+          "toX": 1,
+          "toY": 32,
+          "direction": 6,
+          "fadeType": 0
+        },
+        {
+          "eventId": 22,
+          "fromX": 27,
+          "fromY": 21,
+          "toMapId": 138,
+          "toX": 7,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 23,
+          "fromX": 20,
+          "fromY": 9,
+          "toMapId": 144,
+          "toX": 4,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 25,
+          "fromX": 20,
+          "fromY": 15,
+          "toMapId": 25,
+          "toX": 7,
+          "toY": 0,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 28,
+          "fromX": 18,
+          "fromY": 3,
+          "toMapId": 148,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 29,
+          "fromX": 18,
+          "fromY": 15,
+          "toMapId": 25,
+          "toX": 7,
+          "toY": 0,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 30,
+          "fromX": 18,
+          "fromY": 21,
+          "toMapId": 109,
+          "toX": 31,
+          "toY": 87,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 31,
+          "fromX": 21,
+          "fromY": 3,
+          "toMapId": 148,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 34,
+          "fromX": 22,
+          "fromY": 9,
+          "toMapId": 144,
+          "toX": 4,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 35,
+          "fromX": 24,
+          "fromY": 9,
+          "toMapId": 144,
+          "toX": 4,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 36,
+          "fromX": 23,
+          "fromY": 3,
+          "toMapId": 148,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 37,
+          "fromX": 23,
+          "fromY": 15,
+          "toMapId": 27,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 38,
+          "fromX": 24,
+          "fromY": 3,
+          "toMapId": 148,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 39,
+          "fromX": 27,
+          "fromY": 3,
+          "toMapId": 148,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 41,
+          "fromX": 26,
+          "fromY": 9,
+          "toMapId": 144,
+          "toX": 12,
+          "toY": 5,
+          "direction": 2,
+          "fadeType": 0
+        },
+        {
+          "eventId": 42,
+          "fromX": 29,
+          "fromY": 21,
+          "toMapId": 33,
+          "toX": 8,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 43,
+          "fromX": 25,
+          "fromY": 15,
+          "toMapId": 25,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 44,
+          "fromX": 27,
+          "fromY": 15,
+          "toMapId": 27,
+          "toX": 8,
+          "toY": 6,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 47,
+          "fromX": 24,
+          "fromY": 21,
+          "toMapId": 138,
+          "toX": 7,
+          "toY": 6,
+          "direction": 0,
+          "fadeType": 0
+        },
+        {
+          "eventId": 49,
+          "fromX": 14,
+          "fromY": 2,
+          "toMapId": 43,
+          "toX": 13,
+          "toY": 22,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 49,
+          "fromX": 14,
+          "fromY": 2,
+          "toMapId": 43,
+          "toX": 13,
+          "toY": 20,
+          "direction": 8,
+          "fadeType": 0
+        },
+        {
+          "eventId": 50,
+          "fromX": 14,
+          "fromY": 3,
+          "toMapId": 281,
+          "toX": 14,
+          "toY": 4,
+          "direction": 8,
+          "fadeType": 0
+        }
+      ]
+    }
+  ],
+  "parallaxMaps": [
+    17,
+    51,
+    56,
+    75,
+    118,
+    142,
+    149,
+    280
+  ],
+  "unlinkedMaps": [
+    1,
+    6,
+    9,
+    13,
+    14,
+    15,
+    16,
+    18,
+    34,
+    39,
+    54,
+    114,
+    125,
+    272
+  ]
+}
