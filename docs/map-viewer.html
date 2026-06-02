@@ -157,8 +157,12 @@ function drawGrid() {
   if (document.getElementById('showTransfers').checked && img._mapId && img._mapId !== 'seamless') {
     var mid = Number(img._mapId);
     var tdata = TRANSFERS[mid];
+    // 存储查找表，供点击跳转用
+    window._currentTransfers = {};
     if (tdata) {
       tdata.forEach(function(tr) {
+        var key = tr.fx + ',' + tr.fy;
+        window._currentTransfers[key] = tr;
         var px = tr.fx * TILE, py = tr.fy * TILE;
         gctx.fillStyle = 'rgba(0,255,100,0.4)';
         gctx.fillRect(px, py, TILE, TILE);
@@ -168,13 +172,6 @@ function drawGrid() {
         gctx.fillStyle = 'rgba(0,255,100,0.9)';
         gctx.font = 'bold 10px sans-serif';
         gctx.fillText('→Map' + tr.tid, px + 2, py + 10);
-        // 箭头方向
-        gctx.strokeStyle = 'rgba(0,255,100,0.5)';
-        gctx.lineWidth = 1;
-        gctx.beginPath();
-        gctx.moveTo(px + TILE/2, py + TILE/2);
-        gctx.lineTo(px + TILE, py + TILE/2);
-        gctx.stroke();
       });
     }
   }
@@ -197,12 +194,24 @@ function handleClick(e) {
   const rect = gridCanvas.getBoundingClientRect();
   const mx = (e.clientX - rect.left) / zoom;
   const my = (e.clientY - rect.top) / zoom;
-  // 计算 tileset 坐标
   const tx = Math.floor(mx / TILE);
   const ty = Math.floor(my / TILE);
   if (tx < 0 || ty < 0 || tx * TILE >= img.width || ty * TILE >= img.height) return;
 
-  // 检查是否已选择
+  // 点击传送点 → 跳转目标地图
+  if (window._currentTransfers && img._mapId !== 'seamless') {
+    var lok = localTile(tx, ty);
+    var key = lok.x + ',' + lok.y;
+    var tr = window._currentTransfers[key];
+    if (tr) {
+      var sel = document.getElementById('mapSelect');
+      sel.value = String(tr.tid);
+      loadMap(tr.tid);
+      return;
+    }
+  }
+
+  // 普通选择
   const existing = selections.findIndex(function(s) { return s.absX === tx && s.absY === ty; });
   if (existing >= 0) {
     selections.splice(existing, 1);
