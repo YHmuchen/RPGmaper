@@ -50,14 +50,13 @@ async function main() {
     process.stdout.write('[' + (i + 1) + '/' + mapIds.length + '] Map' + id + ' ');
 
     try {
+      await Runtime.evaluate({ expression: `DataManager.loadMapData(${id})`, returnByValue: false });
+      await sleep(300);
+
       var r = await Runtime.evaluate({
         expression: `
           (async function(){
-            // 保存当前地图数据，防止游戏崩溃
-            var _savedMap = $dataMap;
             try {
-              DataManager.loadMapData(${id});
-              await new Promise(function(r){setTimeout(r, 200);});
               var map = $dataMap;
               if(!map) return 'err:no_map';
               var ts = $dataTilesets[map.tilesetId];
@@ -104,18 +103,16 @@ async function main() {
                 return b64;
               };
 
-              var result;
               if(strips <= 1) {
                 var b64 = renderStrip(0, 1, th);
-                result = (!b64 || b64.length < 10) ? 'err:empty' : b64;
-              } else {
-                var results = [];
-                for(var s = 0; s < strips; s++) results.push(renderStrip(s, strips, th));
-                result = JSON.stringify({strips: results, stripH: ${MAX_SAFE}, fullH: th});
+                if(!b64 || b64.length < 10) return 'err:empty';
+                return b64;
               }
-              return result;
+
+              var results = [];
+              for(var s = 0; s < strips; s++) results.push(renderStrip(s, strips, th));
+              return JSON.stringify({strips: results, stripH: ${MAX_SAFE}, fullH: th});
             } catch(e) { return 'err:' + e.message; }
-            finally { $dataMap = _savedMap; }
           })()
         `,
         awaitPromise: true,
