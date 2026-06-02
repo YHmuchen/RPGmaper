@@ -42,22 +42,28 @@ async function main() {
   await Runtime.enable();
   console.log('Listening for map changes...\n');
 
-  // 初始检测
-  try {
-    var r = await Runtime.evaluate({
-      expression: '$gameMap ? JSON.stringify({mapId:$gameMap.mapId(),x:$gamePlayer.x,y:$gamePlayer.y}) : "null"',
-      returnByValue: false
-    });
-    var state = JSON.parse(r.result.value);
-    if (state && state.mapId > 0) {
-      prevMapId = state.mapId;
-      prevX = state.x;
-      prevY = state.y;
-      recordVisit(state.mapId);
-      saveData();
-      console.log('  当前: Map' + state.mapId + ' [' + state.x + ',' + state.y + ']');
-    }
-  } catch(e) { console.log('init err:', e.message); }
+  // 初始检测（等待游戏进入地图场景）
+  for (var retry2 = 0; retry2 < 60; retry2++) {
+    try {
+      var r = await Runtime.evaluate({
+        expression: 'typeof SceneManager !== "undefined" && SceneManager._scene instanceof Scene_Map ? JSON.stringify({mapId:$gameMap.mapId(),x:$gamePlayer.x,y:$gamePlayer.y}) : "null"',
+        returnByValue: false
+      });
+      if (r.result && r.result.value && r.result.value !== '"null"') {
+        var state = JSON.parse(r.result.value);
+        if (state && state.mapId > 0) {
+          prevMapId = state.mapId;
+          prevX = state.x;
+          prevY = state.y;
+          recordVisit(state.mapId);
+          saveData();
+          console.log('  当前: Map' + state.mapId + ' [' + state.x + ',' + state.y + ']');
+          break;
+        }
+      }
+    } catch(e) {}
+    await new Promise(function(r){setTimeout(r, 1000);});
+  }
 
   // 轮询检测地图/位置变化
   setInterval(async function() {
