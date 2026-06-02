@@ -1,11 +1,21 @@
 const CDP = require('chrome-remote-interface');
 const fs = require('fs');
+const path = require('path');
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+const OUT = path.resolve(__dirname, '..', 'maps') + '/';
 
 async function main() {
-  let client = await CDP({port: 9222, host: '127.0.0.1'});
+  let client;
+  try {
+    client = await CDP({port: 9222, host: '127.0.0.1'});
+  } catch(e) {
+    console.error('无法连接到游戏。请确保：\n1. 游戏已启动\n2. 启动参数包含 --remote-debugging-port=9222\n');
+    process.exit(1);
+  }
   const {Runtime} = client;
   await Runtime.enable();
+
+  fs.mkdirSync(OUT, {recursive: true});
 
   // 先获取所有地图 ID
   var r0 = await Runtime.evaluate({
@@ -70,7 +80,7 @@ async function main() {
     var v = r2.result.value;
     if(v && !v.startsWith('err:') && v !== 'no_source') {
       var safeName = name.replace(/[\/:*?"<>|]/g, '_');
-      fs.writeFileSync('C:/Users/Muchen/maps/parallax_' + safeName + '.png', v, 'base64');
+      fs.writeFileSync(OUT + 'parallax_' + safeName + '.png', v, 'base64');
       process.stdout.write('OK\n');
     } else {
       process.stdout.write(v + '\n');

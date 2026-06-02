@@ -1,12 +1,21 @@
 const CDP = require('chrome-remote-interface');
 const fs = require('fs');
+const path = require('path');
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-const OUT = 'C:/Users/Muchen/maps/';
+const OUT = path.resolve(__dirname, '..', 'maps') + '/';
 
 async function main() {
-  let client = await CDP({port: 9222, host: '127.0.0.1'});
+  let client;
+  try {
+    client = await CDP({port: 9222, host: '127.0.0.1'});
+  } catch(e) {
+    console.error('无法连接到游戏。请确保：\n1. 游戏已启动\n2. 启动参数包含 --remote-debugging-port=9222\n');
+    process.exit(1);
+  }
   const {Runtime} = client;
   await Runtime.enable();
+
+  fs.mkdirSync(OUT, {recursive: true});
 
   await Runtime.evaluate({ expression: `try{Game_Event.prototype.setupParticles=function(){};window._p=true}catch(e){}`, returnByValue: false });
 
