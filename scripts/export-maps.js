@@ -26,7 +26,7 @@ async function main() {
 
   // 获取地图列表
   var r0 = await Runtime.evaluate({
-    expression: `JSON.stringify($dataMapInfos.filter(function(m){return m;}).map(function(m,i){return i;}))`,
+    expression: `JSON.stringify((function(){var a=[];for(var i=1;i<$dataMapInfos.length;i++)if($dataMapInfos[i])a.push(i);return a})())`,
     returnByValue: false
   });
   var mapIds = JSON.parse(r0.result.value);
