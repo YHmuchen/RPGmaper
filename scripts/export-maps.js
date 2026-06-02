@@ -67,7 +67,7 @@ async function main() {
               // 不碰 $dataMap，直接读文件
               var pad = String(${id}).padStart(3,'0');
               var fs = require('fs');
-              var p = process.cwd() + '/www/data/Map' + pad + '.json';
+              var p = process.cwd().replace(/\\\\/g,'/') + '/data/Map' + pad + '.json';
               if(!fs.existsSync(p)) return 'err:no_file_' + p;
               var map = JSON.parse(fs.readFileSync(p,'utf8'));
               if(!map||!map.data) return 'err:bad_data';
