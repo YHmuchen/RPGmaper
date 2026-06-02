@@ -21,16 +21,26 @@ try {
 
 async function main() {
   let client;
-  try {
-    client = await CDP({port: 9222, host: '127.0.0.1'});
-  } catch(e) {
-    console.error('无法连接游戏。请确保：\n1. 游戏已启动\n2. 启动参数包含 --remote-debugging-port=9222\n');
+  // 重试连接（游戏启动可能需要几秒）
+  for (var retry = 0; retry < 30; retry++) {
+    try {
+      client = await CDP({port: 9222, host: '127.0.0.1'});
+      break;
+    } catch(e) {
+      if (retry === 0) process.stdout.write('Waiting for game');
+      process.stdout.write('.');
+      await new Promise(function(r){setTimeout(r, 2000);});
+    }
+  }
+  if (!client) {
+    console.error('\nCannot connect to game. Make sure:\n1. Game is running\n2. Started with --remote-debugging-port=9222\n');
     process.exit(1);
   }
+  console.log(' 连接成功!\n');
 
   const {Runtime} = client;
   await Runtime.enable();
-  console.log('已连接游戏，开始监听地图切换...\n');
+  console.log('Listening for map changes...\n');
 
   // 初始检测
   try {
