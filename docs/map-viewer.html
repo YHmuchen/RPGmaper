@@ -65,9 +65,21 @@
     <button id="copyBtn" style="width:100%;margin-bottom:6px;">复制选择数据到剪贴板</button>
     <textarea id="jsonPreview" readonly style="width:100%;height:100px;background:#2a2a2a;border:1px solid #444;color:#8c8;padding:4px;font:11px monospace;border-radius:3px;resize:vertical;" placeholder="选择格子后点复制"></textarea>
     <hr style="border-color:#333;margin:12px 0;">
-    <h3>偏移修正</h3>
-    <p style="color:#666;margin-bottom:6px;">选择两张地图的交界处，标记对齐点</p>
-    <button id="calcOffsetBtn" style="width:100%;">计算选中格子的偏移</button>
+    <h3>传送点管理</h3>
+    <p style="color:#666;margin-bottom:6px;" id="editHint">点击传送点跳转，或在下方添加/编辑</p>
+    <button id="toggleEditBtn" style="width:100%;margin-bottom:6px;background:#5a7a3a;">✏️ 编辑模式</button>
+    <div id="editForm" style="display:none;background:#2a2a2a;padding:8px;border-radius:3px;margin-bottom:6px;">
+      <label style="color:#999;font-size:11px;">来源格子 (当前地图)</label>
+      <input id="editSrcX" type="number" style="width:45%;background:#333;border:1px solid #444;color:#ccc;padding:2px 4px;">
+      <input id="editSrcY" type="number" style="width:45%;background:#333;border:1px solid #444;color:#ccc;padding:2px 4px;">
+      <label style="color:#999;font-size:11px;">→ 目标地图</label>
+      <input id="editDstMap" type="number" style="width:100%;background:#333;border:1px solid #444;color:#ccc;padding:2px 4px;">
+      <label style="color:#999;font-size:11px;">目标坐标</label>
+      <input id="editDstX" type="number" style="width:45%;background:#333;border:1px solid #444;color:#ccc;padding:2px 4px;">
+      <input id="editDstY" type="number" style="width:45%;background:#333;border:1px solid #444;color:#ccc;padding:2px 4px;">
+      <button id="saveTransferBtn" style="width:100%;margin-top:4px;background:#4a6a3a;">保存传送点</button>
+    </div>
+    <button id="exportTransferBtn" style="width:100%;">导出全部传送数据</button>
     <div id="calcResult" style="margin-top:6px;color:#8c8;"></div>
   </div>
 </div>
@@ -113,6 +125,7 @@ img.onerror = function() {
   document.getElementById('status').textContent = '加载失败 - 需要先将地图复制到 docs/maps/ 目录';
 };
 img.onload = function() {
+  window._currentTransfers = null;
   mapCanvas.width = img.width;
   mapCanvas.height = img.height;
   gridCanvas.width = img.width;
@@ -198,8 +211,18 @@ function handleClick(e) {
   const ty = Math.floor(my / TILE);
   if (tx < 0 || ty < 0 || tx * TILE >= img.width || ty * TILE >= img.height) return;
 
+  // 编辑模式下点击填来源坐标
+  var editMode = document.getElementById('toggleEditBtn').dataset.active === '1';
+  if (editMode && img._mapId !== 'seamless') {
+    var lok = localTile(tx, ty);
+    document.getElementById('editSrcX').value = lok.x;
+    document.getElementById('editSrcY').value = lok.y;
+    document.getElementById('status').textContent = '已选来源: (' + lok.x + ',' + lok.y + ')，填写目标后保存';
+    return;
+  }
+
   // 点击传送点 → 跳转目标地图
-  if (window._currentTransfers && img._mapId !== 'seamless') {
+  if (!editMode && window._currentTransfers && img._mapId !== 'seamless') {
     var lok = localTile(tx, ty);
     var key = lok.x + ',' + lok.y;
     var tr = window._currentTransfers[key];
@@ -329,6 +352,52 @@ document.getElementById('scrollArea').addEventListener('wheel', function(e) {
   const rect = this.getBoundingClientRect();
   zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY > 0 ? 1/1.15 : 1.15);
 }, {passive: false});
+
+// 编辑模式切换
+document.getElementById('toggleEditBtn').addEventListener('click', function() {
+  var active = this.dataset.active === '1' ? '0' : '1';
+  this.dataset.active = active;
+  this.style.background = active === '1' ? '#8a3a3a' : '#5a7a3a';
+  this.textContent = active === '1' ? '✏️ 编辑中...' : '✏️ 编辑模式';
+  document.getElementById('editForm').style.display = active === '1' ? 'block' : 'none';
+  document.getElementById('editHint').textContent = active === '1' ? '点击地图格子选择来源坐标' : '点击传送点跳转，或在下方添加';
+  if (active !== '1') {
+    window._currentTransfers = null;
+    drawGrid();
+  }
+});
+
+// 保存传送点
+document.getElementById('saveTransferBtn').addEventListener('click', function() {
+  var mid = Number(img._mapId);
+  if (!mid || mid === 'seamless') { document.getElementById('status').textContent = '请在单图模式下编辑'; return; }
+  var sx = parseInt(document.getElementById('editSrcX').value);
+  var sy = parseInt(document.getElementById('editSrcY').value);
+  var dm = parseInt(document.getElementById('editDstMap').value);
+  var dx = parseInt(document.getElementById('editDstX').value);
+  var dy = parseInt(document.getElementById('editDstY').value);
+  if (isNaN(sx)||isNaN(sy)||isNaN(dm)||isNaN(dx)||isNaN(dy)) {
+    document.getElementById('status').textContent = '请填完整';
+    return;
+  }
+  if (!TRANSFERS[mid]) TRANSFERS[mid] = [];
+  // 去重
+  TRANSFERS[mid] = TRANSFERS[mid].filter(function(t){return !(t.fx===sx&&t.fy===sy&&t.tid===dm);});
+  TRANSFERS[mid].push({fx:sx,fy:sy,tid:dm,tx:dx,ty:dy});
+  drawGrid();
+  document.getElementById('status').textContent = '已保存 Map' + mid + '(' + sx + ',' + sy + ')→Map' + dm;
+});
+
+// 导出传送数据
+document.getElementById('exportTransferBtn').addEventListener('click', function() {
+  var data = JSON.stringify(TRANSFERS, null, 2);
+  var blob = new Blob([data], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'transfers.json';
+  a.click();
+  document.getElementById('status').textContent = '已导出 transfers.json';
+});
 
 document.getElementById('calcOffsetBtn').addEventListener('click', function() {
   const div = document.getElementById('calcResult');
