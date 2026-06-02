@@ -37,6 +37,8 @@
   <select id="mapSelect" style="background:#333;border:1px solid #444;color:#ccc;padding:3px 6px;border-radius:3px;"></select>
   <label style="margin-left:8px;">传送点</label>
   <input type="checkbox" id="showTransfers" checked>
+  <label style="margin-left:8px;">上帝模式</label>
+  <input type="checkbox" id="godMode" checked>
   <label style="margin-left:8px;">格子尺寸</label>
   <input type="number" id="tileSize" value="24" min="8" max="96" step="2">
   <label>网格</label>
@@ -172,8 +174,10 @@ function drawGrid() {
     var tdata = TRANSFERS[mid];
     // 存储查找表，供点击跳转用
     window._currentTransfers = {};
+    var god = document.getElementById('godMode').checked;
     if (tdata) {
       tdata.forEach(function(tr) {
+        if (!god && !visitedMaps.has(tr.tid)) return;
         var key = tr.fx + ',' + tr.fy;
         window._currentTransfers[key] = tr;
         var px = tr.fx * TILE, py = tr.fy * TILE;
@@ -227,8 +231,8 @@ function handleClick(e) {
     var key = lok.x + ',' + lok.y;
     var tr = window._currentTransfers[key];
     if (tr) {
-      var sel = document.getElementById('mapSelect');
-      sel.value = String(tr.tid);
+      if (!document.getElementById('godMode').checked) visitMap(tr.tid);
+      document.getElementById('mapSelect').value = String(tr.tid);
       loadMap(tr.tid);
       return;
     }
@@ -381,9 +385,9 @@ document.getElementById('saveTransferBtn').addEventListener('click', function() 
     return;
   }
   if (!TRANSFERS[mid]) TRANSFERS[mid] = [];
-  // 去重
   TRANSFERS[mid] = TRANSFERS[mid].filter(function(t){return !(t.fx===sx&&t.fy===sy&&t.tid===dm);});
   TRANSFERS[mid].push({fx:sx,fy:sy,tid:dm,tx:dx,ty:dy});
+  if (!document.getElementById('godMode').checked) visitMap(dm);
   drawGrid();
   document.getElementById('status').textContent = '已保存 Map' + mid + '(' + sx + ',' + sy + ')→Map' + dm;
 });
@@ -421,22 +425,59 @@ function loadMap(mapId) {
 // 地图列表（内嵌数据，避免 file:// 下 fetch 被拦截）
 var MAP_LIST = [{"id":1,"w":17,"h":13,"link":false},{"id":2,"w":17,"h":13,"link":true},{"id":3,"w":61,"h":101,"link":true},{"id":5,"w":28,"h":16,"link":true},{"id":6,"w":17,"h":13,"link":false},{"id":7,"w":28,"h":29,"link":true},{"id":9,"w":17,"h":13,"link":false},{"id":10,"w":17,"h":13,"link":true},{"id":13,"w":17,"h":13,"link":false},{"id":14,"w":17,"h":13,"link":false},{"id":15,"w":17,"h":13,"link":false},{"id":16,"w":35,"h":52,"link":true},{"id":17,"w":17,"h":13,"link":false},{"id":18,"w":17,"h":13,"link":false},{"id":25,"w":17,"h":13,"link":true},{"id":26,"w":47,"h":39,"link":true},{"id":27,"w":17,"h":13,"link":true},{"id":28,"w":17,"h":13,"link":true},{"id":29,"w":17,"h":13,"link":true},{"id":30,"w":17,"h":13,"link":true},{"id":31,"w":17,"h":13,"link":true},{"id":33,"w":17,"h":13,"link":true},{"id":34,"w":17,"h":13,"link":true},{"id":35,"w":17,"h":13,"link":true},{"id":38,"w":17,"h":13,"link":true},{"id":39,"w":17,"h":13,"link":true},{"id":40,"w":17,"h":13,"link":true},{"id":43,"w":27,"h":27,"link":true},{"id":44,"w":17,"h":13,"link":true},{"id":51,"w":17,"h":13,"link":false},{"id":53,"w":55,"h":35,"link":true},{"id":54,"w":33,"h":26,"link":true},{"id":55,"w":17,"h":13,"link":true},{"id":56,"w":17,"h":13,"link":false},{"id":66,"w":45,"h":45,"link":true},{"id":68,"w":61,"h":101,"link":true},{"id":75,"w":17,"h":13,"link":false},{"id":76,"w":17,"h":13,"link":true},{"id":83,"w":21,"h":26,"link":true},{"id":91,"w":48,"h":28,"link":true},{"id":93,"w":17,"h":13,"link":true},{"id":107,"w":39,"h":44,"link":true},{"id":109,"w":61,"h":101,"link":true},{"id":114,"w":27,"h":15,"link":false},{"id":116,"w":25,"h":30,"link":true},{"id":117,"w":27,"h":28,"link":true},{"id":118,"w":17,"h":13,"link":false},{"id":120,"w":70,"h":50,"link":false},{"id":125,"w":17,"h":28,"link":true},{"id":137,"w":70,"h":50,"link":true},{"id":138,"w":17,"h":13,"link":false},{"id":139,"w":17,"h":13,"link":true},{"id":142,"w":17,"h":13,"link":false},{"id":144,"w":35,"h":52,"link":true},{"id":145,"w":16,"h":23,"link":true},{"id":148,"w":17,"h":13,"link":true},{"id":149,"w":17,"h":13,"link":false},{"id":152,"w":44,"h":43,"link":true},{"id":154,"w":17,"h":13,"link":true},{"id":157,"w":81,"h":60,"link":true},{"id":251,"w":26,"h":18,"link":true},{"id":252,"w":19,"h":20,"link":true},{"id":260,"w":47,"h":39,"link":true},{"id":262,"w":17,"h":13,"link":true},{"id":264,"w":26,"h":25,"link":true},{"id":268,"w":17,"h":13,"link":true},{"id":270,"w":18,"h":14,"link":true},{"id":271,"w":14,"h":10,"link":true},{"id":272,"w":17,"h":13,"link":false},{"id":273,"w":35,"h":52,"link":true},{"id":274,"w":18,"h":16,"link":true},{"id":280,"w":17,"h":13,"link":false},{"id":281,"w":34,"h":27,"link":true}];
 
-// 初始化地图列表
-var allMapIds = [];
-(function() {
+// 已探索地图（localStorage 持久化）
+var visitedMaps = new Set();
+try {
+  var saved = JSON.parse(localStorage.getItem('rpgmaper_visited') || '[]');
+  saved.forEach(function(id){ visitedMaps.add(id); });
+} catch(e) {}
+
+function visitMap(id) {
+  if (!id || id === 'seamless') return;
+  id = Number(id);
+  if (!visitedMaps.has(id)) {
+    visitedMaps.add(id);
+    try { localStorage.setItem('rpgmaper_visited', JSON.stringify(Array.from(visitedMaps))); } catch(e) {}
+    rebuildDropdown();
+  }
+}
+
+function rebuildDropdown() {
   var sel = document.getElementById('mapSelect');
-  var opt = document.createElement('option'); opt.value = 'seamless'; opt.textContent = '无缝图(拼接)';
+  var currentVal = sel.value;
+  var god = document.getElementById('godMode').checked;
+  sel.innerHTML = '';
+  var opt = document.createElement('option'); opt.value = 'seamless'; opt.textContent = '📷 无缝图';
   sel.appendChild(opt);
   MAP_LIST.forEach(function(m) {
+    if (!god && !visitedMaps.has(m.id)) return;
     var opt = document.createElement('option');
     opt.value = m.id;
-    opt.textContent = 'Map' + m.id + ' (' + m.w + 'x' + m.h + ')' + (m.link ? ' 🔗' : '');
+    var label = 'Map' + m.id + ' (' + m.w + 'x' + m.h + ')';
+    if (!god) label = (m.link ? '🔗 ' : '  ') + label;
+    else if (m.link) label = label + ' 🔗';
+    if (!god && visitedMaps.has(m.id)) label = '✓ ' + label;
+    opt.textContent = label;
     sel.appendChild(opt);
   });
-  allMapIds = MAP_LIST.map(function(m){return m.id;});
-  sel.value = '3';
-  loadMap(3);
-})();
+  // 恢复选中或选第一个
+  if (currentVal && (currentVal === 'seamless' || visitedMaps.has(Number(currentVal)) || god)) {
+    sel.value = currentVal;
+  } else {
+    sel.value = 'seamless';
+    loadMap('seamless');
+  }
+}
+
+// 初始化
+var allMapIds = MAP_LIST.map(function(m){return m.id;});
+visitMap(3); // 初始地图
+rebuildDropdown();
+document.getElementById('mapSelect').value = '3';
+loadMap(3);
+
+// 上帝模式切换
+document.getElementById('godMode').addEventListener('change', rebuildDropdown);
 
 // 传送点数据
 var TRANSFERS={2:[{fx:0,fy:0,tid:7,tx:2,ty:8},{fx:0,fy:1,tid:273,tx:0,ty:32},{fx:0,fy:1,tid:137,tx:34,ty:45},{fx:0,fy:1,tid:75,tx:9,ty:0},{fx:0,fy:1,tid:68,tx:33,ty:18},{fx:0,fy:1,tid:68,tx:24,ty:10}],3:[{fx:22,fy:7,tid:120,tx:59,ty:39},{fx:23,fy:7,tid:120,tx:59,ty:39},{fx:24,fy:7,tid:120,tx:59,ty:39},{fx:25,fy:7,tid:120,tx:59,ty:39},{fx:26,fy:7,tid:120,tx:59,ty:39}],5:[{fx:17,fy:13,tid:264,tx:17,ty:8}],7:[{fx:2,fy:11,tid:5,tx:17,ty:14}],10:[{fx:7,fy:12,tid:26,tx:36,ty:27}],16:[{fx:1,fy:32,tid:274,tx:9,ty:11}],25:[{fx:0,fy:0,tid:281,tx:18,ty:16},{fx:0,fy:0,tid:281,tx:20,ty:16},{fx:0,fy:0,tid:281,tx:25,ty:16}],26:[{fx:37,fy:15,tid:251,tx:5,ty:11},{fx:36,fy:26,tid:10,tx:8,ty:12},{fx:30,fy:33,tid:26,tx:2,ty:24}],27:[{fx:0,fy:0,tid:281,tx:23,ty:16},{fx:0,fy:0,tid:281,tx:27,ty:16}],28:[{fx:9,fy:12,tid:109,tx:31,ty:99},{fx:9,fy:12,tid:109,tx:31,ty:90}],29:[{fx:0,fy:0,tid:137,tx:8,ty:20},{fx:0,fy:0,tid:281,tx:10,ty:7},{fx:0,fy:0,tid:144,tx:12,ty:5}],30:[{fx:1,fy:0,tid:29,tx:7,ty:0}],31:[{fx:0,fy:0,tid:137,tx:34,ty:34},{fx:0,fy:0,tid:137,tx:34,ty:34}],33:[{fx:0,fy:0,tid:109,tx:31,ty:99},{fx:0,fy:0,tid:28,tx:9,ty:0}],34:[{fx:0,fy:0,tid:157,tx:40,ty:20}],35:[{fx:0,fy:0,tid:152,tx:24,ty:22},{fx:0,fy:0,tid:91,tx:36,ty:13}],38:[{fx:0,fy:0,tid:91,tx:20,ty:10},{fx:0,fy:0,tid:91,tx:31,ty:11},{fx:0,fy:0,tid:91,tx:7,ty:10},{fx:0,fy:0,tid:91,tx:35,ty:10}],39:[{fx:0,fy:0,tid:137,tx:62,ty:33}],40:[{fx:0,fy:0,tid:120,tx:62,ty:34},{fx:0,fy:0,tid:120,tx:33,ty:9}],43:[{fx:13,fy:11,tid:157,tx:40,ty:51},{fx:14,fy:12,tid:281,tx:14,ty:6},{fx:13,fy:10,tid:157,tx:40,ty:51},{fx:12,fy:24,tid:281,tx:14,ty:4},{fx:13,fy:24,tid:281,tx:14,ty:4},{fx:14,fy:24,tid:281,tx:14,ty:4}],44:[{fx:0,fy:0,tid:3,tx:31,ty:97}],53:[{fx:45,fy:25,tid:118,tx:8,ty:6},{fx:31,fy:5,tid:281,tx:23,ty:4},{fx:19,fy:9,tid:281,tx:21,ty:4},{fx:45,fy:26,tid:118,tx:8,ty:6}],54:[{fx:6,fy:2,tid:281,tx:26,ty:10}],55:[{fx:8,fy:6,tid:157,tx:40,ty:27},{fx:8,fy:6,tid:157,tx:40,ty:18}],66:[{fx:31,fy:41,tid:2,tx:0,ty:2},{fx:21,fy:39,tid:107,tx:19,ty:19},{fx:20,fy:39,tid:107,tx:19,ty:19},{fx:22,fy:39,tid:107,tx:19,ty:19}],68:[{fx:40,fy:42,tid:68,tx:31,ty:93},{fx:55,fy:62,tid:145,tx:7,ty:15},{fx:22,fy:4,tid:137,tx:34,ty:46},{fx:23,fy:4,tid:137,tx:34,ty:46},{fx:24,fy:4,tid:137,tx:34,ty:46},{fx:25,fy:4,tid:137,tx:34,ty:46},{fx:26,fy:4,tid:137,tx:34,ty:46},{fx:33,fy:16,tid:139,tx:7,ty:0},{fx:45,fy:16,tid:139,tx:7,ty:0},{fx:15,fy:41,tid:68,tx:15,ty:50},{fx:60,fy:47,tid:109,tx:54,ty:53}],76:[{fx:0,fy:0,tid:137,tx:7,ty:18},{fx:0,fy:0,tid:137,tx:7,ty:33}],83:[{fx:10,fy:9,tid:281,tx:5,ty:12},{fx:13,fy:18,tid:91,tx:20,ty:9}],91:[{fx:38,fy:10,tid:38,tx:9,ty:7},{fx:36,fy:15,tid:35,tx:8,ty:6},{fx:20,fy:7,tid:83,tx:11,ty:18},{fx:38,fy:11,tid:38,tx:9,ty:7}],93:[{fx:0,fy:0,tid:152,tx:26,ty:16}],107:[{fx:19,fy:23,tid:107,tx:30,ty:30},{fx:19,fy:18,tid:66,tx:21,ty:37}],109:[{fx:40,fy:42,tid:109,tx:31,ty:93},{fx:55,fy:62,tid:145,tx:7,ty:15},{fx:25,fy:44,tid:149,tx:8,ty:0},{fx:22,fy:4,tid:137,tx:34,ty:46},{fx:23,fy:4,tid:137,tx:34,ty:46},{fx:24,fy:4,tid:137,tx:34,ty:46},{fx:25,fy:4,tid:137,tx:34,ty:46},{fx:26,fy:4,tid:137,tx:34,ty:46},{fx:37,fy:73,tid:109,tx:53,ty:53},{fx:33,fy:16,tid:139,tx:7,ty:0},{fx:45,fy:16,tid:139,tx:7,ty:0},{fx:34,fy:64,tid:281,tx:14,ty:11},{fx:60,fy:47,tid:109,tx:54,ty:53},{fx:15,fy:41,tid:109,tx:22,ty:50}],116:[{fx:5,fy:16,tid:117,tx:16,ty:13},{fx:5,fy:17,tid:117,tx:16,ty:14},{fx:9,fy:27,tid:157,tx:56,ty:42},{fx:8,fy:4,tid:157,tx:40,ty:51}],117:[{fx:18,fy:13,tid:116,tx:7,ty:16},{fx:18,fy:14,tid:116,tx:7,ty:17},{fx:13,fy:23,tid:157,tx:48,ty:42}],125:[{fx:10,fy:10,tid:66,tx:20,ty:26},{fx:8,fy:24,tid:51,tx:8,ty:6}],137:[{fx:34,fy:48,tid:109,tx:26,ty:17},{fx:9,fy:19,tid:76,tx:8,ty:0},{fx:9,fy:20,tid:76,tx:8,ty:0},{fx:4,fy:19,tid:31,tx:7,ty:0},{fx:29,fy:32,tid:31,tx:7,ty:0},{fx:39,fy:32,tid:31,tx:7,ty:0},{fx:34,fy:31,tid:281,tx:14,ty:11}],139:[{fx:0,fy:0,tid:109,tx:33,ty:18}],144:[{fx:10,fy:6,tid:262,tx:9,ty:12},{fx:10,fy:6,tid:274,tx:8,ty:10},{fx:10,fy:6,tid:138,tx:7,ty:6},{fx:4,fy:5,tid:280,tx:8,ty:6},{fx:9,fy:5,tid:138,tx:8,ty:6}],145:[{fx:7,fy:17,tid:68,tx:55,ty:63},{fx:7,fy:3,tid:109,tx:55,ty:63}],148:[{fx:0,fy:0,tid:281,tx:18,ty:4},{fx:0,fy:0,tid:53,tx:31,ty:10}],152:[{fx:13,fy:14,tid:91,tx:8,ty:7},{fx:26,fy:16,tid:152,tx:9,ty:10},{fx:37,fy:8,tid:93,tx:7,ty:0},{fx:22,fy:37,tid:154,tx:8,ty:5},{fx:24,fy:12,tid:152,tx:21,ty:22},{fx:30,fy:27,tid:152,tx:22,ty:36}],154:[{fx:0,fy:0,tid:152,tx:22,ty:36}],157:[{fx:37,fy:16,tid:157,tx:26,ty:1},{fx:28,fy:40,tid:138,tx:6,ty:4},{fx:48,fy:41,tid:117,tx:13,ty:22},{fx:56,fy:41,tid:116,tx:9,ty:25},{fx:73,fy:2,tid:55,tx:8,ty:6},{fx:43,fy:53,tid:2,tx:8,ty:6},{fx:43,fy:53,tid:144,tx:1,ty:32}],251:[{fx:5,fy:14,tid:26,tx:37,ty:16},{fx:5,fy:14,tid:260,tx:37,ty:16},{fx:19,fy:8,tid:281,tx:14,ty:11},{fx:22,fy:3,tid:264,tx:10,ty:13},{fx:22,fy:3,tid:268,tx:8,ty:12},{fx:23,fy:3,tid:264,tx:10,ty:13},{fx:23,fy:3,tid:268,tx:8,ty:12}],252:[{fx:9,fy:5,tid:251,tx:6,ty:9},{fx:13,fy:2,tid:270,tx:8,ty:8},{fx:3,fy:5,tid:271,tx:6,ty:4},{fx:14,fy:4,tid:281,tx:14,ty:11}],260:[{fx:37,fy:15,tid:251,tx:5,ty:11},{fx:9,fy:32,tid:260,tx:14,ty:32},{fx:26,fy:38,tid:281,tx:5,ty:7}],262:[{fx:8,fy:12,tid:274,tx:8,ty:10},{fx:8,fy:12,tid:273,tx:12,ty:6},{fx:8,fy:12,tid:144,tx:10,ty:8}],264:[{fx:10,fy:16,tid:251,tx:22,ty:6},{fx:10,fy:5,tid:252,tx:9,ty:15}],268:[{fx:8,fy:12,tid:281,tx:14,ty:6}],270:[{fx:8,fy:6,tid:252,tx:9,ty:13},{fx:8,fy:6,tid:26,tx:36,ty:27}],271:[{fx:8,fy:4,tid:252,tx:5,ty:5}],273:[{fx:10,fy:6,tid:262,tx:9,ty:12},{fx:4,fy:5,tid:280,tx:8,ty:12},{fx:6,fy:12,tid:2,tx:7,ty:12},{fx:14,fy:6,tid:281,tx:14,ty:11}],274:[{fx:9,fy:10,tid:262,tx:9,ty:12},{fx:9,fy:13,tid:138,tx:7,ty:6}],281:[{fx:14,fy:26,tid:30,tx:7,ty:0},{fx:14,fy:26,tid:33,tx:7,ty:0},{fx:14,fy:26,tid:152,tx:22,ty:36},{fx:14,fy:26,tid:40,tx:8,ty:6},{fx:14,fy:26,tid:66,tx:37,ty:39},{fx:14,fy:26,tid:55,tx:8,ty:6},{fx:19,fy:9,tid:273,tx:12,ty:6},{fx:5,fy:11,tid:93,tx:7,ty:6},{fx:5,fy:6,tid:252,tx:9,ty:7},{fx:10,fy:6,tid:33,tx:8,ty:0},{fx:5,fy:16,tid:138,tx:7,ty:5},{fx:5,fy:21,tid:144,tx:1,ty:32},{fx:10,fy:11,tid:44,tx:8,ty:6},{fx:10,fy:16,tid:55,tx:8,ty:6},{fx:10,fy:21,tid:144,tx:1,ty:32},{fx:27,fy:21,tid:138,tx:7,ty:6},{fx:20,fy:9,tid:144,tx:4,ty:6},{fx:20,fy:15,tid:25,tx:7,ty:0},{fx:18,fy:3,tid:148,tx:8,ty:6},{fx:18,fy:15,tid:25,tx:7,ty:0},{fx:18,fy:21,tid:109,tx:31,ty:87},{fx:21,fy:3,tid:148,tx:8,ty:6},{fx:22,fy:9,tid:144,tx:4,ty:6},{fx:24,fy:9,tid:144,tx:4,ty:6},{fx:23,fy:3,tid:148,tx:8,ty:6},{fx:23,fy:15,tid:27,tx:8,ty:6},{fx:24,fy:3,tid:148,tx:8,ty:6},{fx:27,fy:3,tid:148,tx:8,ty:6},{fx:26,fy:9,tid:144,tx:12,ty:5},{fx:29,fy:21,tid:33,tx:8,ty:6},{fx:25,fy:15,tid:25,tx:8,ty:6},{fx:27,fy:15,tid:27,tx:8,ty:6},{fx:24,fy:21,tid:138,tx:7,ty:6},{fx:14,fy:2,tid:43,tx:13,ty:22},{fx:14,fy:3,tid:281,tx:14,ty:4}]};
@@ -445,7 +486,9 @@ var TRANSFERS={2:[{fx:0,fy:0,tid:7,tx:2,ty:8},{fx:0,fy:1,tid:273,tx:0,ty:32},{fx
 var OFFSETS = {2:[8,26],3:[-29,-92],5:[-9,15],7:[6,18],10:[-5,7],25:[13,15],26:[-33,-7],27:[15,9],28:[-2,26],29:[1,26],30:[7,26],31:[-28,-89],33:[7,26],35:[25,6],38:[26,0],40:[6,20],43:[1,-20],44:[2,5],53:[-21,-13],55:[6,20],66:[-23,-13],68:[-25,9],75:[-1,27],76:[-24,-89],83:[6,-14],91:[-3,-3],93:[-2,5],107:[-21,7],109:[-13,-66],116:[21,15],117:[9,18],118:[16,6],120:[-56,-14],137:[-25,-108],138:[-2,11],139:[13,-50],144:[4,-11],145:[35,-19],148:[10,-3],149:[4,-22],152:[-8,-10],154:[6,22],157:[-26,-1],251:[-1,-5],252:[-4,-1],260:[-33,-7],262:[8,-3],264:[11,-15],268:[13,-14],270:[1,-7],271:[-7,0],273:[7,3],274:[6,-15],280:[3,-4],281:[0,0]};
 
 document.getElementById('mapSelect').addEventListener('change', function() {
-  loadMap(this.value);
+  var id = this.value;
+  if (!document.getElementById('godMode').checked && id !== 'seamless') visitMap(Number(id));
+  loadMap(id);
 });
 </script>
 </body>
