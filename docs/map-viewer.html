@@ -14,8 +14,9 @@
   .toolbar button:hover { background: #4a7eb5; }
   .toolbar .info { margin-left: auto; color: #888; font-size: 12px; }
 
-  .container { flex: 1; overflow: auto; position: relative; display: flex; }
-  .canvas-wrap { position: relative; }
+  .container { flex: 1; overflow: hidden; position: relative; display: flex; }
+  .scroll-area { flex: 1; overflow: auto; position: relative; }
+  .canvas-wrap { position: relative; transform-origin: 0 0; }
   canvas { display: block; position: absolute; top: 0; left: 0; }
 
   .sidebar { width: 280px; background: #222; border-left: 1px solid #333; padding: 12px; overflow-y: auto; flex-shrink: 0; font-size: 12px; }
@@ -39,14 +40,16 @@
   <label>标签</label>
   <input type="checkbox" id="showLabels">
   <button id="clearSel">清空选择</button>
-  <button id="zoomFit">适配窗口</button>
+  <span style="color:#999;font-size:13px;">缩放: <span id="zoomLevel">100</span>%</span>
   <span class="info" id="status">就绪</span>
 </div>
 
 <div class="container">
-  <div class="canvas-wrap" id="canvasWrap">
-    <canvas id="mapCanvas"></canvas>
-    <canvas id="gridCanvas"></canvas>
+  <div class="scroll-area" id="scrollArea">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mapCanvas"></canvas>
+      <canvas id="gridCanvas"></canvas>
+    </div>
   </div>
   <div class="sidebar">
     <h3>已选择的格子</h3>
@@ -75,11 +78,30 @@ const wrap = document.getElementById('canvasWrap');
 
 let img = new Image();
 let imgLoaded = false;
-let scale = 1;
-let offsetX = 0, offsetY = 0;
-let selections = []; // [{mapId, tileX, tileY, absX, absY}, ...]
+let zoom = 1;
+let selections = [];
 let dragMode = false;
 let dragStart = null;
+
+function applyZoom() {
+  const wrap = document.getElementById('canvasWrap');
+  const area = document.getElementById('scrollArea');
+  const z = Math.max(0.05, Math.min(10, zoom));
+  wrap.style.transform = 'scale(' + z + ')';
+  wrap.style.width = (img.width || 1) + 'px';
+  wrap.style.height = (img.height || 1) + 'px';
+  document.getElementById('zoomLevel').textContent = Math.round(z * 100);
+}
+
+function zoomAt(px, py, factor) {
+  const area = document.getElementById('scrollArea');
+  const oldZ = zoom;
+  zoom = Math.max(0.05, Math.min(10, zoom * factor));
+  const ratio = zoom / oldZ;
+  area.scrollLeft = (area.scrollLeft + px) * ratio - px;
+  area.scrollTop = (area.scrollTop + py) * ratio - py;
+  applyZoom();
+}
 
 // 加载无缝地图
 img.onload = function() {
@@ -89,6 +111,7 @@ img.onload = function() {
   gridCanvas.height = img.height;
   drawMap();
   drawGrid();
+  applyZoom();
   imgLoaded = true;
   document.getElementById('status').textContent = img.width + 'x' + img.height + 'px 已加载';
 };
@@ -138,8 +161,8 @@ function drawGrid() {
 // 点击处理
 function handleClick(e) {
   const rect = gridCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+  const mx = (e.clientX - rect.left) / zoom;
+  const my = (e.clientY - rect.top) / zoom;
   // 计算 tileset 坐标
   const tx = Math.floor(mx / TILE);
   const ty = Math.floor(my / TILE);
@@ -235,6 +258,24 @@ document.getElementById('exportBtn').addEventListener('click', function() {
   a.download = 'selections.json';
   a.click();
 });
+
+// 缩放快捷键
+document.addEventListener('keydown', function(e) {
+  const area = document.getElementById('scrollArea');
+  const rect = area.getBoundingClientRect();
+  const cx = rect.width / 2, cy = rect.height / 2;
+  if (e.ctrlKey && e.key === '=') { e.preventDefault(); zoomAt(cx, cy, 1.3); }
+  if (e.ctrlKey && e.key === '-') { e.preventDefault(); zoomAt(cx, cy, 1/1.3); }
+  if (e.ctrlKey && e.key === '0') { e.preventDefault(); zoom = 1; applyZoom(); }
+});
+
+// 鼠标滚轮缩放（Ctrl+滚轮）
+document.getElementById('scrollArea').addEventListener('wheel', function(e) {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  const rect = this.getBoundingClientRect();
+  zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY > 0 ? 1/1.15 : 1.15);
+}, {passive: false});
 
 document.getElementById('calcOffsetBtn').addEventListener('click', function() {
   const div = document.getElementById('calcResult');
