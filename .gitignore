@@ -7,3 +7,7 @@ docs/maps/
 node_modules/
 *.lnk
 docs/parallax/
+
+# 自动生成
+launch.bat
+restore-cdp.bat
