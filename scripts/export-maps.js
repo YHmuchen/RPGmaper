@@ -100,7 +100,7 @@ async function main() {
                 return _b64||'err:empty';
               }
               var strips = Math.ceil(_th/${MAX_H});
-              return strips<=1 ? doStrip(0) : JSON.stringify({s:Array.from({length:strips},function(_,s){return doStrip(s);}), sh:${MAX_H}, fh:th});
+              return strips<=1 ? doStrip(0) : JSON.stringify({s:Array.from({length:strips},function(_,s){return doStrip(s);}), sh:${MAX_H}, fh:${th});
             } catch(e) { return 'err:'+e.message; }
           })()
         `,
