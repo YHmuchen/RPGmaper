@@ -24,35 +24,15 @@ async function main() {
     returnByValue: false
   });
 
-  // 获取所有地图 ID
+  // 获取地图 ID + tile 数量（排除视差图）
   var r0 = await Runtime.evaluate({
-    expression: `JSON.stringify((function(){var a=[];for(var i=1;i<$dataMapInfos.length;i++)if($dataMapInfos[i])a.push(i);return a})())`,
+    expression: `JSON.stringify((function(){var ids=[],skip=[];for(var i=1;i<$dataMapInfos.length;i++){if(!$dataMapInfos[i])continue;DataManager.loadMapData(i);var m=$dataMap;if(!m)continue;var c=0;for(var j=0;j<m.data.length;j++)if(m.data[j]>0)c++;if(c===0)skip.push(i);else ids.push(i);}return{ids:ids,skip:skip};})())`,
     returnByValue: false
   });
-  var allMapIds = JSON.parse(r0.result.value);
-  console.log('Found ' + allMapIds.length + ' maps');
-
-  // 逐张加载并检查 tile 数量（排除视差图）
-  var mapIds = [], parallaxIds = [];
-  for (var mi = 0; mi < allMapIds.length; mi++) {
-    var id = allMapIds[mi];
-    process.stdout.write('Scan ' + id + '...');
-    await Runtime.evaluate({ expression: `DataManager.loadMapData(${id})`, returnByValue: false });
-    await sleep(300);
-    var r1 = await Runtime.evaluate({
-      expression: `JSON.stringify((function(){var m=$dataMap;if(!m)return null;var c=0;for(var j=0;j<m.data.length;j++)if(m.data[j]>0)c++;return c;})())`,
-      returnByValue: false
-    });
-    var tileCount = JSON.parse(r1.result.value);
-    if (tileCount === null || tileCount === 0) {
-      parallaxIds.push(id);
-      process.stdout.write('skip (0 tiles)\n');
-    } else {
-      mapIds.push(id);
-      process.stdout.write(tileCount + ' tiles\n');
-    }
-  }
-  console.log('\nExport: ' + mapIds.length + ' maps, parallax skipped: ' + parallaxIds.length + '\n');
+  var mapData = JSON.parse(r0.result.value);
+  var mapIds = mapData.ids;
+  var parallaxIds = mapData.skip;
+  console.log('Total: ' + mapIds.length + ' maps, parallax skipped: ' + parallaxIds.length);
 
   // 全局 PIXI 应用
   await Runtime.evaluate({
