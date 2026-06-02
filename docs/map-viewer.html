@@ -444,42 +444,49 @@ function visitMap(id) {
 
 function rebuildDropdown() {
   var sel = document.getElementById('mapSelect');
+  if (!sel) { setTimeout(rebuildDropdown, 50); return; }
   var currentVal = sel.value;
-  var god = document.getElementById('godMode').checked;
-  // 清空并重建
-  while (sel.firstChild) sel.removeChild(sel.firstChild);
-  // 无缝图选项
-  var opt = document.createElement('option'); opt.value = 'seamless'; opt.textContent = '📷 无缝图';
-  sel.appendChild(opt);
+  var god = document.getElementById('godMode') ? document.getElementById('godMode').checked : true;
+  // 清空
+  sel.options.length = 0;
+  // 无缝图
+  sel.options[0] = new Option('📷 无缝图', 'seamless');
+  var idx = 1;
   // 地图列表
   MAP_LIST.forEach(function(m) {
     if (!god && !visitedMaps.has(m.id)) return;
-    var o = document.createElement('option');
-    o.value = m.id;
     var label = 'Map' + m.id + ' (' + m.w + 'x' + m.h + ')';
     if (!god) label = (m.link ? '🔗 ' : '  ') + label;
     else if (m.link) label = label + ' 🔗';
     if (!god && visitedMaps.has(m.id)) label = '✓ ' + label;
-    o.textContent = label;
-    sel.appendChild(o);
+    sel.options[idx++] = new Option(label, '' + m.id);
   });
   // 恢复选中
-  if (currentVal && (currentVal === 'seamless' || visitedMaps.has(Number(currentVal)) || god)) {
-    if (sel.querySelector('option[value="' + currentVal + '"]')) {
-      sel.value = currentVal;
-      return;
+  if (currentVal) {
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === currentVal) { sel.selectedIndex = i; return; }
     }
   }
-  sel.value = 'seamless';
+  sel.selectedIndex = 0;
 }
 
 // 初始化
 var allMapIds = MAP_LIST.map(function(m){return m.id;});
 visitedMaps.add(3);
 try { localStorage.setItem('rpgmaper_visited', JSON.stringify(Array.from(visitedMaps))); } catch(e) {}
-rebuildDropdown();
-document.getElementById('mapSelect').value = '3';
-loadMap(3);
+
+// 确保 DOM 就绪后初始化下拉框
+function initDropdown() {
+  var sel = document.getElementById('mapSelect');
+  if (!sel) { setTimeout(initDropdown, 50); return; }
+  rebuildDropdown();
+  // 选中 Map3
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === '3') { sel.selectedIndex = i; break; }
+  }
+  loadMap(3);
+}
+initDropdown();
 
 // 上帝模式切换
 document.getElementById('godMode').addEventListener('change', rebuildDropdown);
