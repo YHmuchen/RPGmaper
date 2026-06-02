@@ -1,6 +1,13 @@
 # 地图渲染输出（大文件，不跟踪）
 maps/*.png
 maps/tilesets/
+docs/maps/
 
 # 依赖
 node_modules/
+*.lnk
+docs/parallax/
+
+# 自动生成
+launch.bat
+restore-cdp.bat
