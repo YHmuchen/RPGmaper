@@ -1,0 +1,1 @@
+var VISITED_MAPS = [];
