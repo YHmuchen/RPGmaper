@@ -64,7 +64,10 @@ async function main() {
         expression: `
           (async function(){
             try {
-              // 不碰 $dataMap，直接读文件
+              // 先调 DataManager 预热 tileset 缓存
+              DataManager.loadMapData(${id});
+              await new Promise(function(r){setTimeout(r,300);});
+              // 从磁盘读地图数据（不依赖$dataMap）
               var pad = String(${id}).padStart(3,'0');
               var fs = require('fs');
               var p = process.cwd().replace(/\\\\/g,'/') + '/data/Map' + pad + '.json';
@@ -83,11 +86,20 @@ async function main() {
                 var n = names[j];
                 if(n&&n.length>0) {
                   var b = ImageManager.loadTileset(n);
-                  if(b){bm.push(b);if(!b.isReady())tasks.push(new Promise(function(r){b.addLoadListener(function(){r();});}));}
-                  else bm.push(blank);
+                  if(b){
+                    bm.push(b);
+                    if(!b.isReady()){
+                      tasks.push(new Promise(function(r){
+                        var check = function(){if(b.isReady())r();else setTimeout(check,50);};
+                        check();
+                      }));
+                    }
+                  } else bm.push(blank);
                 } else bm.push(blank);
               }
               if(tasks.length) await Promise.all(tasks);
+              // 等待一帧确保所有纹理就绪
+              await new Promise(function(r){setTimeout(r,100);});
 
               var app = window._xp;
               function doStrip(idx) {
