@@ -5,3 +5,4 @@ docs/maps/
 
 # 依赖
 node_modules/
+*.lnk
