@@ -64,10 +64,10 @@ async function main() {
 
       var mapId = state.mapId, x = state.x, y = state.y;
 
-      // 地图切换 → 记录传送
+      // 地图切换 → 记录/自动添加传送点
       if (mapId !== prevMapId && prevMapId > 0) {
         recordVisit(mapId);
-        // 在 TRANSFERS 数据中查找匹配的传送点
+        // prevX/prevY 是玩家在旧地图上的最后已知位置（即传送前的位置）
         var match = findTransfer(prevMapId, mapId, x, y);
         if (match) {
           usedTransfers.push({
@@ -77,15 +77,34 @@ async function main() {
           });
           console.log('  Map' + prevMapId + '[' + match.fx + ',' + match.fy + '] → Map' + mapId + '[' + x + ',' + y + '] ✓');
         } else {
-          // 记录缺漏的传送
-          if (!missingTransfers[prevMapId]) missingTransfers[prevMapId] = [];
-          missingTransfers[prevMapId].push({toMap:mapId, tx:x, ty:y, ts:Date.now()});
-          console.log('  Map' + prevMapId + ' → Map' + mapId + '[' + x + ',' + y + '] (未匹配，需补传传送点)');
+          // 自动添加缺漏的传送点：上一帧位置 ≈ 传送来源
+          var srcX = prevX, srcY = prevY;
+          if (!TRANSFERS[prevMapId]) TRANSFERS[prevMapId] = [];
+          // 去重
+          var dup = false;
+          for (var i = 0; i < TRANSFERS[prevMapId].length; i++) {
+            if (TRANSFERS[prevMapId][i].fx === srcX && TRANSFERS[prevMapId][i].fy === srcY && TRANSFERS[prevMapId][i].tid === mapId) {
+              dup = true; break;
+            }
+          }
+          if (!dup) {
+            TRANSFERS[prevMapId].push({fx: srcX, fy: srcY, tid: mapId, tx: x, ty: y});
+            usedTransfers.push({
+              fromMap: prevMapId, fx: srcX, fy: srcY,
+              toMap: mapId, tx: x, ty: y,
+              ts: Date.now()
+            });
+            console.log('  ⚡ Map' + prevMapId + '[' + srcX + ',' + srcY + '] → Map' + mapId + '[' + x + ',' + y + '] (自动添加)');
+          }
         }
         prevMapId = mapId;
         prevX = x;
         prevY = y;
         saveData();
+      } else {
+        // 没切图也要更新位置（供传送检测用）
+        prevX = x;
+        prevY = y;
       }
     } catch(e) {}
   }, 1500);
@@ -119,9 +138,7 @@ function saveData() {
   var arr = Array.from(visited).sort(function(a,b){return a-b});
   var content = 'var VISITED_MAPS = ' + JSON.stringify(arr) + ';\n';
   content += 'var USED_TRANSFERS = ' + JSON.stringify(usedTransfers) + ';\n';
-  if (Object.keys(missingTransfers).length > 0) {
-    content += 'var MISSING_TRANSFERS = ' + JSON.stringify(missingTransfers) + ';\n';
-  }
+  content += 'var WATCH_TRANSFERS = ' + JSON.stringify(TRANSFERS) + ';\n';
   fs.writeFileSync(VISITED_FILE, content);
 }
 

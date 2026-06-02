@@ -441,6 +441,17 @@ if (typeof VISITED_MAPS !== 'undefined') {
 if (typeof USED_TRANSFERS !== 'undefined') {
   usedTransfers = USED_TRANSFERS;
 }
+// 合并 watch-game 自动发现的传送点
+if (typeof WATCH_TRANSFERS !== 'undefined') {
+  for (var mid in WATCH_TRANSFERS) {
+    var arr = WATCH_TRANSFERS[mid];
+    if (!TRANSFERS[mid]) TRANSFERS[mid] = [];
+    arr.forEach(function(t) {
+      var dup = TRANSFERS[mid].some(function(e){return e.fx===t.fx&&e.fy===t.fy&&e.tid===t.tid;});
+      if (!dup) TRANSFERS[mid].push(t);
+    });
+  }
+}
 
 // 从 localStorage 补充（手动访问的记录）
 try {
