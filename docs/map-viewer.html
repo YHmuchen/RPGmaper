@@ -59,8 +59,9 @@
     <p class="status" id="selStatus">点击地图选择格子</p>
     <hr style="border-color:#333;margin:12px 0;">
     <h3>操作</h3>
-    <button id="saveBtn" style="width:100%;margin-bottom:6px;">保存选择</button>
-    <button id="exportBtn" style="width:100%;">导出为JSON</button>
+    <button id="saveBtn" style="width:100%;margin-bottom:6px;">下载 selections.json</button>
+    <button id="copyBtn" style="width:100%;margin-bottom:6px;">复制选择数据到剪贴板</button>
+    <textarea id="jsonPreview" readonly style="width:100%;height:100px;background:#2a2a2a;border:1px solid #444;color:#8c8;padding:4px;font:11px monospace;border-radius:3px;resize:vertical;" placeholder="选择格子后点复制"></textarea>
     <hr style="border-color:#333;margin:12px 0;">
     <h3>偏移修正</h3>
     <p style="color:#666;margin-bottom:6px;">选择两张地图的交界处，标记对齐点</p>
@@ -254,14 +255,15 @@ document.getElementById('saveBtn').addEventListener('click', function() {
   document.getElementById('status').textContent = '已保存 selections.json';
 });
 
-document.getElementById('exportBtn').addEventListener('click', function() {
+document.getElementById('copyBtn').addEventListener('click', function() {
   const data = JSON.stringify(selections, null, 2);
-  document.getElementById('status').textContent = selections.length + ' 个格子 (准备导出)';
-  const blob = new Blob([data], {type: 'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'selections.json';
-  a.click();
+  document.getElementById('jsonPreview').value = data;
+  document.getElementById('jsonPreview').select();
+  navigator.clipboard.writeText(data).then(function() {
+    document.getElementById('status').textContent = '已复制 ' + selections.length + ' 个格子';
+  }).catch(function() {
+    document.getElementById('status').textContent = '复制失败，请手动复制文本框内容';
+  });
 });
 
 // 缩放快捷键
