@@ -196,14 +196,13 @@ function handleClick(e) {
 
 // 查找某个绝对坐标属于哪张地图
 function findMapAt(absX, absY) {
-  // 从 connections 数据查找
-  if (window._mapOffsets && window._mapOffsets.length) {
-    for (let i = 0; i < window._mapOffsets.length; i++) {
-      const m = window._mapOffsets[i];
-      if (absX >= m.ox && absX < m.ox + m.w &&
-          absY >= m.oy && absY < m.oy + m.h) {
-        return {id: m.id, ox: m.ox, oy: m.oy};
-      }
+  for (var i = 0; i < MAP_LIST.length; i++) {
+    var m = MAP_LIST[i];
+    var off = OFFSETS[m.id];
+    if (!off) continue;
+    if (absX >= off[0] && absX < off[0] + m.w &&
+        absY >= off[1] && absY < off[1] + m.h) {
+      return {id: m.id, ox: off[0], oy: off[1]};
     }
   }
   return null;
@@ -303,32 +302,28 @@ function loadMap(mapId) {
   document.getElementById('status').textContent = '加载 ' + f + '...';
 }
 
+// 地图列表（内嵌数据，避免 file:// 下 fetch 被拦截）
+var MAP_LIST = [{"id":1,"w":17,"h":13,"link":false},{"id":2,"w":17,"h":13,"link":true},{"id":3,"w":61,"h":101,"link":true},{"id":5,"w":28,"h":16,"link":true},{"id":6,"w":17,"h":13,"link":false},{"id":7,"w":28,"h":29,"link":true},{"id":9,"w":17,"h":13,"link":false},{"id":10,"w":17,"h":13,"link":true},{"id":13,"w":17,"h":13,"link":false},{"id":14,"w":17,"h":13,"link":false},{"id":15,"w":17,"h":13,"link":false},{"id":16,"w":35,"h":52,"link":true},{"id":17,"w":17,"h":13,"link":false},{"id":18,"w":17,"h":13,"link":false},{"id":25,"w":17,"h":13,"link":true},{"id":26,"w":47,"h":39,"link":true},{"id":27,"w":17,"h":13,"link":true},{"id":28,"w":17,"h":13,"link":true},{"id":29,"w":17,"h":13,"link":true},{"id":30,"w":17,"h":13,"link":true},{"id":31,"w":17,"h":13,"link":true},{"id":33,"w":17,"h":13,"link":true},{"id":34,"w":17,"h":13,"link":true},{"id":35,"w":17,"h":13,"link":true},{"id":38,"w":17,"h":13,"link":true},{"id":39,"w":17,"h":13,"link":true},{"id":40,"w":17,"h":13,"link":true},{"id":43,"w":27,"h":27,"link":true},{"id":44,"w":17,"h":13,"link":true},{"id":51,"w":17,"h":13,"link":false},{"id":53,"w":55,"h":35,"link":true},{"id":54,"w":33,"h":26,"link":true},{"id":55,"w":17,"h":13,"link":true},{"id":56,"w":17,"h":13,"link":false},{"id":66,"w":45,"h":45,"link":true},{"id":68,"w":61,"h":101,"link":true},{"id":75,"w":17,"h":13,"link":false},{"id":76,"w":17,"h":13,"link":true},{"id":83,"w":21,"h":26,"link":true},{"id":91,"w":48,"h":28,"link":true},{"id":93,"w":17,"h":13,"link":true},{"id":107,"w":39,"h":44,"link":true},{"id":109,"w":61,"h":101,"link":true},{"id":114,"w":27,"h":15,"link":false},{"id":116,"w":25,"h":30,"link":true},{"id":117,"w":27,"h":28,"link":true},{"id":118,"w":17,"h":13,"link":false},{"id":120,"w":70,"h":50,"link":false},{"id":125,"w":17,"h":28,"link":true},{"id":137,"w":70,"h":50,"link":true},{"id":138,"w":17,"h":13,"link":false},{"id":139,"w":17,"h":13,"link":true},{"id":142,"w":17,"h":13,"link":false},{"id":144,"w":35,"h":52,"link":true},{"id":145,"w":16,"h":23,"link":true},{"id":148,"w":17,"h":13,"link":true},{"id":149,"w":17,"h":13,"link":false},{"id":152,"w":44,"h":43,"link":true},{"id":154,"w":17,"h":13,"link":true},{"id":157,"w":81,"h":60,"link":true},{"id":251,"w":26,"h":18,"link":true},{"id":252,"w":19,"h":20,"link":true},{"id":260,"w":47,"h":39,"link":true},{"id":262,"w":17,"h":13,"link":true},{"id":264,"w":26,"h":25,"link":true},{"id":268,"w":17,"h":13,"link":true},{"id":270,"w":18,"h":14,"link":true},{"id":271,"w":14,"h":10,"link":true},{"id":272,"w":17,"h":13,"link":false},{"id":273,"w":35,"h":52,"link":true},{"id":274,"w":18,"h":16,"link":true},{"id":280,"w":17,"h":13,"link":false},{"id":281,"w":34,"h":27,"link":true}];
+
 // 初始化地图列表
 var allMapIds = [];
-Promise.all([
-  fetch('map_sizes.json').then(function(r) { return r.json(); }),
-  fetch('connections.json').then(function(r) { return r.json(); })
-]).then(function(results) {
-  var sizes = results[0], conn = results[1];
+(function() {
   var sel = document.getElementById('mapSelect');
-  // 无缝图
   var opt = document.createElement('option'); opt.value = 'seamless'; opt.textContent = '无缝图(拼接)';
   sel.appendChild(opt);
-  // 各个地图
-  var ids = Object.keys(sizes).map(Number).sort(function(a,b){return a-b});
-  ids.forEach(function(id) {
-    var s = sizes[id];
-    var name = conn.connections ? (conn.connections.find(function(c){return c.mapId==id})?' 🔗':'') : '';
+  MAP_LIST.forEach(function(m) {
     var opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = 'Map' + id + ' (' + s.w + 'x' + s.h + ')' + name;
+    opt.value = m.id;
+    opt.textContent = 'Map' + m.id + ' (' + m.w + 'x' + m.h + ')' + (m.link ? ' 🔗' : '');
     sel.appendChild(opt);
   });
-  allMapIds = ids;
-  // 默认选 Map3
+  allMapIds = MAP_LIST.map(function(m){return m.id;});
   sel.value = '3';
   loadMap(3);
-}).catch(function(e) { console.log('init error:', e); loadMap(3); });
+})();
+
+// 偏移数据（内嵌）
+var OFFSETS = {2:[8,26],3:[-29,-92],5:[-9,15],7:[6,18],10:[-5,7],25:[13,15],26:[-33,-7],27:[15,9],28:[-2,26],29:[1,26],30:[7,26],31:[-28,-89],33:[7,26],35:[25,6],38:[26,0],40:[6,20],43:[1,-20],44:[2,5],53:[-21,-13],55:[6,20],66:[-23,-13],68:[-25,9],75:[-1,27],76:[-24,-89],83:[6,-14],91:[-3,-3],93:[-2,5],107:[-21,7],109:[-13,-66],116:[21,15],117:[9,18],118:[16,6],120:[-56,-14],137:[-25,-108],138:[-2,11],139:[13,-50],144:[4,-11],145:[35,-19],148:[10,-3],149:[4,-22],152:[-8,-10],154:[6,22],157:[-26,-1],251:[-1,-5],252:[-4,-1],260:[-33,-7],262:[8,-3],264:[11,-15],268:[13,-14],270:[1,-7],271:[-7,0],273:[7,3],274:[6,-15],280:[3,-4],281:[0,0]};
 
 document.getElementById('mapSelect').addEventListener('change', function() {
   loadMap(this.value);
