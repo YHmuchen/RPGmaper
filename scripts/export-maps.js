@@ -84,9 +84,10 @@ async function main() {
               }
 
               var app = window._xp;
+              var _tw=${tw}, _th=${th};
               function doStrip(idx) {
-                var sh = Math.min(${MAX_H}, th-idx*${MAX_H});
-                app.renderer.resize(tw,sh); app.view.width=tw; app.view.height=sh;
+                var sh = Math.min(${MAX_H}, _th-idx*${MAX_H});
+                app.renderer.resize(_tw,sh); app.view.width=_tw; app.view.height=sh;
                 while(app.stage.children.length) app.stage.removeChildAt(0);
                 var tm = new Tilemap();
                 tm.tileWidth=48; tm.tileHeight=48; tm._margin=0;
@@ -94,11 +95,11 @@ async function main() {
                 tm.setBitmaps(bm); tm.refresh();
                 if(idx>0) tm.origin.y = idx*${MAX_H};
                 app.stage.addChild(tm); app.renderer.render(app.stage);
-                var b64 = app.view.toDataURL('image/png').split(',')[1];
+                var _b64 = app.view.toDataURL('image/png').split(',')[1];
                 app.stage.removeChild(tm);
-                return b64||'err:empty';
+                return _b64||'err:empty';
               }
-              var strips = Math.ceil(th/${MAX_H});
+              var strips = Math.ceil(_th/${MAX_H});
               return strips<=1 ? doStrip(0) : JSON.stringify({s:Array.from({length:strips},function(_,s){return doStrip(s);}), sh:${MAX_H}, fh:th});
             } catch(e) { return 'err:'+e.message; }
           })()
