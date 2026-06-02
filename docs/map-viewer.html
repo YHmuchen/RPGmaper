@@ -446,32 +446,37 @@ function rebuildDropdown() {
   var sel = document.getElementById('mapSelect');
   var currentVal = sel.value;
   var god = document.getElementById('godMode').checked;
-  sel.innerHTML = '';
+  // 清空并重建
+  while (sel.firstChild) sel.removeChild(sel.firstChild);
+  // 无缝图选项
   var opt = document.createElement('option'); opt.value = 'seamless'; opt.textContent = '📷 无缝图';
   sel.appendChild(opt);
+  // 地图列表
   MAP_LIST.forEach(function(m) {
     if (!god && !visitedMaps.has(m.id)) return;
-    var opt = document.createElement('option');
-    opt.value = m.id;
+    var o = document.createElement('option');
+    o.value = m.id;
     var label = 'Map' + m.id + ' (' + m.w + 'x' + m.h + ')';
     if (!god) label = (m.link ? '🔗 ' : '  ') + label;
     else if (m.link) label = label + ' 🔗';
     if (!god && visitedMaps.has(m.id)) label = '✓ ' + label;
-    opt.textContent = label;
-    sel.appendChild(opt);
+    o.textContent = label;
+    sel.appendChild(o);
   });
-  // 恢复选中或选第一个
+  // 恢复选中
   if (currentVal && (currentVal === 'seamless' || visitedMaps.has(Number(currentVal)) || god)) {
-    sel.value = currentVal;
-  } else {
-    sel.value = 'seamless';
-    loadMap('seamless');
+    if (sel.querySelector('option[value="' + currentVal + '"]')) {
+      sel.value = currentVal;
+      return;
+    }
   }
+  sel.value = 'seamless';
 }
 
 // 初始化
 var allMapIds = MAP_LIST.map(function(m){return m.id;});
-visitMap(3); // 初始地图
+visitedMaps.add(3);
+try { localStorage.setItem('rpgmaper_visited', JSON.stringify(Array.from(visitedMaps))); } catch(e) {}
 rebuildDropdown();
 document.getElementById('mapSelect').value = '3';
 loadMap(3);
