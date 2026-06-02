@@ -7,7 +7,8 @@ let prevMapId = null, prevX = null, prevY = null;
 
 // 已探索地图 & 已使用的传送点
 var visited = new Set();
-var usedTransfers = []; // [{fromMap, fx, fy, toMap, tx, ty}, ...]
+var usedTransfers = [];
+var missingTransfers = {}; // { fromMap: [{toMap, tx, ty, ts}, ...] } // [{fromMap, fx, fy, toMap, tx, ty}, ...]
 
 // 加载已有传送记录
 try {
@@ -76,7 +77,10 @@ async function main() {
           });
           console.log('  Map' + prevMapId + '[' + match.fx + ',' + match.fy + '] → Map' + mapId + '[' + x + ',' + y + '] ✓');
         } else {
-          console.log('  → Map' + mapId + ' (无法匹配传送点)');
+          // 记录缺漏的传送
+          if (!missingTransfers[prevMapId]) missingTransfers[prevMapId] = [];
+          missingTransfers[prevMapId].push({toMap:mapId, tx:x, ty:y, ts:Date.now()});
+          console.log('  Map' + prevMapId + ' → Map' + mapId + '[' + x + ',' + y + '] (未匹配，需补传传送点)');
         }
         prevMapId = mapId;
         prevX = x;
@@ -115,6 +119,9 @@ function saveData() {
   var arr = Array.from(visited).sort(function(a,b){return a-b});
   var content = 'var VISITED_MAPS = ' + JSON.stringify(arr) + ';\n';
   content += 'var USED_TRANSFERS = ' + JSON.stringify(usedTransfers) + ';\n';
+  if (Object.keys(missingTransfers).length > 0) {
+    content += 'var MISSING_TRANSFERS = ' + JSON.stringify(missingTransfers) + ';\n';
+  }
   fs.writeFileSync(VISITED_FILE, content);
 }
 
