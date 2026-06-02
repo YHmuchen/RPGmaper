@@ -17,64 +17,58 @@ async function main() {
   await Runtime.enable();
   fs.mkdirSync(OUT, {recursive: true});
 
-  // 补丁
-  await Runtime.evaluate({
-    expression: `try{Game_Event.prototype.setupParticles=function(){}}catch(e){}`,
-    returnByValue: false
-  });
+  await Runtime.evaluate({ expression: `try{Game_Event.prototype.setupParticles=function(){}}catch(e){}`,returnByValue: false});
 
   // 获取地图 ID
-  var r0 = await Runtime.evaluate({
-    expression: `JSON.stringify((function(){var a=[];for(var i=1;i<$dataMapInfos.length;i++)if($dataMapInfos[i])a.push(i);return a})())`,
-    returnByValue: false
-  });
+  var r0 = await Runtime.evaluate({expression: `JSON.stringify((function(){var a=[];for(var i=1;i<$dataMapInfos.length;i++)if($dataMapInfos[i])a.push(i);return a})())`,returnByValue: false});
   var mapIds = JSON.parse(r0.result.value);
   console.log('Total: ' + mapIds.length + ' maps\n');
 
-  // 预加载 tileset 列表
-  var r1 = await Runtime.evaluate({
-    expression: `JSON.stringify((function(){var o={};for(var i=1;i<$dataTilesets.length;i++){var t=$dataTilesets[i];if(t)o[i]=t.tilesetNames;}return o;})())`,
-    returnByValue: false
-  });
-  var allTilesets = JSON.parse(r1.result.value);
-
-  // 创建全局 PIXI 应用
+  // 预加载所有 tileset 图片到缓存
+  console.log('Pre-loading all tilesets...');
   await Runtime.evaluate({
-    expression: `if(!window._xp){window._xp=new PIXI.Application({width:32,height:32,preserveDrawingBuffer:true,backgroundColor:0});window._xp.destroy=function(){}}`,
+    expression: `
+      (async function(){
+        var loaded = {};
+        for(var i=1;i<$dataTilesets.length;i++){
+          var ts=$dataTilesets[i];
+          if(!ts||!ts.tilesetNames)continue;
+          for(var j=0;j<ts.tilesetNames.length;j++){
+            var n=ts.tilesetNames[j];
+            if(!n||!n.length||loaded[n])continue;
+            loaded[n]=true;
+            var bmp=ImageManager.loadTileset(n);
+            if(bmp&&!bmp.isReady()) await new Promise(function(r){bmp.addLoadListener(function(){r();});});
+          }
+        }
+        return Object.keys(loaded).length;
+      })()
+    `,
+    awaitPromise: true,
     returnByValue: false
   });
+  var preloadCount = JSON.parse(r0.result.value || '0');
+  console.log('Tilesets pre-loaded: ' + preloadCount + '\n');
+
+  // 创建全局 PIXI 应用（只一次）
+  await Runtime.evaluate({expression: `if(!window._xp){window._xp=new PIXI.Application({width:32,height:32,preserveDrawingBuffer:true,backgroundColor:0});window._xp.destroy=function(){}}`,returnByValue: false});
 
   var sharp = require('sharp');
   var success = 0, fail = 0;
-  var baseDir = '';
-
-  // 先找游戏根目录
-  var r2 = await Runtime.evaluate({
-    expression: `typeof require!=='undefined'&&typeof process!=='undefined'?JSON.stringify({cwd:process.cwd(),hasFS:typeof require('fs').readFileSync==='function'}):'nw_not_ready'`,
-    returnByValue: false
-  });
-  console.log('NW.js:', r2.result.value);
 
   for (var i = 0; i < mapIds.length; i++) {
     var id = mapIds[i];
-    process.stdout.write('[' + (i + 1) + '/' + mapIds.length + '] Map' + id + ' ');
+    process.stdout.write('['+(i+1)+'/'+mapIds.length+'] Map'+id+' ');
 
     try {
       var r = await Runtime.evaluate({
         expression: `
           (async function(){
             try {
-              // 先调 DataManager 预热 tileset 缓存
               DataManager.loadMapData(${id});
               await new Promise(function(r){setTimeout(r,300);});
-              // 从磁盘读地图数据（不依赖$dataMap）
-              var pad = String(${id}).padStart(3,'0');
-              var fs = require('fs');
-              var p = process.cwd().replace(/\\\\/g,'/') + '/data/Map' + pad + '.json';
-              if(!fs.existsSync(p)) return 'err:no_file_' + p;
-              var map = JSON.parse(fs.readFileSync(p,'utf8'));
-              if(!map||!map.data) return 'err:bad_data';
-
+              var map = $dataMap;
+              if(!map) return 'err:no_map';
               var ts = $dataTilesets[map.tilesetId];
               if(!ts) return 'err:no_ts';
               var tw = map.width*48, th = map.height*48;
@@ -86,20 +80,12 @@ async function main() {
                 var n = names[j];
                 if(n&&n.length>0) {
                   var b = ImageManager.loadTileset(n);
-                  if(b){
-                    bm.push(b);
-                    if(!b.isReady()){
-                      tasks.push(new Promise(function(r){
-                        var check = function(){if(b.isReady())r();else setTimeout(check,50);};
-                        check();
-                      }));
-                    }
-                  } else bm.push(blank);
+                  if(b){bm.push(b);if(!b.isReady())tasks.push(new Promise(function(r){b.addLoadListener(function(){r();});}));}
+                  else bm.push(blank);
                 } else bm.push(blank);
               }
               if(tasks.length) await Promise.all(tasks);
-              // 等待一帧确保所有纹理就绪
-              await new Promise(function(r){setTimeout(r,100);});
+              await new Promise(function(r){setTimeout(r,50);});
 
               var app = window._xp;
               function doStrip(idx) {
@@ -127,13 +113,11 @@ async function main() {
 
       var v = r.result.value;
       if (v && !v.startsWith('err:')) {
-        var pad = String(id).padStart(4, '0');
+        var pad = String(id).padStart(4,'0');
         if (v.startsWith('{"s":')) {
-          var d = JSON.parse(v);
-          var meta, tmpFiles = [];
+          var d = JSON.parse(v); var meta, tmpFiles = [];
           for(var s=0;s<d.s.length;s++) {
-            var buf = Buffer.from(d.s[s],'base64');
-            var tmp = OUT+'t'+pad+'_'+s+'.png';
+            var buf = Buffer.from(d.s[s],'base64'); var tmp=OUT+'t'+pad+'_'+s+'.png';
             fs.writeFileSync(tmp,buf); tmpFiles.push(tmp);
             if(!meta) meta = await sharp(tmp).metadata();
           }
@@ -147,18 +131,12 @@ async function main() {
           process.stdout.write((fs.statSync(OUT+'Map'+pad+'.png').size/1024).toFixed(0)+'KB ✓\n');
         }
         success++;
-      } else {
-        process.stdout.write('✗ ' + v + '\n');
-        fail++;
-      }
-    } catch(e) {
-      process.stdout.write('Error: ' + e.message + '\n');
-      fail++;
-    }
+      } else { process.stdout.write('✗ '+v+'\n'); fail++; }
+    } catch(e) { process.stdout.write('Error: '+e.message+'\n'); fail++; }
     await sleep(30);
   }
 
-  console.log('\nDone! ' + success + ' OK, ' + fail + ' failed');
+  console.log('\nDone! '+success+' OK, '+fail+' failed');
   client.close();
 }
 main().catch(function(e){console.error(e);process.exit(1);});
