@@ -44,6 +44,7 @@ async function main() {
       prevX = state.x;
       prevY = state.y;
       recordVisit(state.mapId);
+      saveData();
       console.log('  当前: Map' + state.mapId + ' [' + state.x + ',' + state.y + ']');
     }
   } catch(e) { console.log('init err:', e.message); }
