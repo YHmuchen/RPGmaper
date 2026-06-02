@@ -126,7 +126,8 @@ function zoomAt(px, py, factor) {
 
 // 加载无缝地图
 img.onerror = function() {
-  document.getElementById('status').textContent = '加载失败 - 需要先将地图复制到 docs/maps/ 目录';
+  var id = img._mapId;
+  document.getElementById('status').textContent = '地图 ' + (id && id !== 'seamless' ? 'Map' + id : '') + ' 不存在于 docs/maps/，请复制';
 };
 img.onload = function() {
   window._currentTransfers = null;
