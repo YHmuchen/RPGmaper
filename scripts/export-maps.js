@@ -26,15 +26,7 @@ async function main() {
   var mapIds = JSON.parse(r0.result.value);
   console.log('Total: ' + mapIds.length + ' maps\n');
 
-  // 读取所有 tileset 图片（本地已解密的 PNG）
-  var tsCache = {};
-  var tsFiles = fs.readdirSync(TS_DIR).filter(function(f){return f.endsWith('.png');});
-  tsFiles.forEach(function(f) {
-    var name = f.replace('.png', '');
-    var data = fs.readFileSync(TS_DIR + f).toString('base64');
-    tsCache[name] = data;
-  });
-  console.log('Loaded ' + Object.keys(tsCache).length + ' tilesets from local cache\n');
+  console.log('Tilesets will load from ' + TS_DIR.replace(/\\/g,'/') + '\n');
 
   // 创建全局 PIXI 应用
   await Runtime.evaluate({expression: `if(!window._xp){window._xp=new PIXI.Application({width:32,height:32,preserveDrawingBuffer:true,backgroundColor:0});window._xp.destroy=function(){}}`,returnByValue: false});
@@ -67,18 +59,19 @@ async function main() {
               var names = ts.tilesetNames;
               if(!names||names.length===0) return 'err:no_names';
 
+              var _fs = require('fs');
+              var _base = 'C:/Users/Muchen/maps/tilesets/';
               var bm = [], blank = new Bitmap(1,1);
-              ${JSON.stringify(tsCache)}
 
               for(var j=0;j<names.length;j++) {
                 var n = names[j];
                 if(n&&n.length>0) {
-                  var b64 = tsCache[n];
-                  if(b64) {
-                    // 用本地图片创建 Bitmap
+                  var f = _base + n + '.png';
+                  try {
+                    var data = _fs.readFileSync(f).toString('base64');
                     var bmp = new Bitmap(1,1);
                     var img = new Image();
-                    img.src = 'data:image/png;base64,' + b64;
+                    img.src = 'data:image/png;base64,' + data;
                     await new Promise(function(r){img.onload=r;});
                     var c = document.createElement('canvas');
                     c.width = img.width; c.height = img.height;
@@ -86,7 +79,7 @@ async function main() {
                     bmp._canvas = c;
                     bmp._image = img;
                     bm.push(bmp);
-                  } else { bm.push(blank); }
+                  } catch(e) { bm.push(blank); }
                 } else { bm.push(blank); }
               }
 
