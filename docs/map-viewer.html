@@ -38,7 +38,7 @@
   <label style="margin-left:8px;">传送点</label>
   <input type="checkbox" id="showTransfers" checked>
   <label style="margin-left:8px;">上帝模式</label>
-  <input type="checkbox" id="godMode" checked>
+  <input type="checkbox" id="godMode">
   <label style="margin-left:8px;">格子尺寸</label>
   <input type="number" id="tileSize" value="24" min="8" max="96" step="2">
   <label>网格</label>
@@ -180,15 +180,30 @@ function drawGrid() {
         if (!god && !visitedMaps.has(tr.tid)) return;
         var key = tr.fx + ',' + tr.fy;
         window._currentTransfers[key] = tr;
+        // 检查这个传送点是否被使用过
+        var used = usedTransfers.some(function(u) {
+          return u.fromMap === mid && u.fx === tr.fx && u.fy === tr.fy;
+        });
         var px = tr.fx * TILE, py = tr.fy * TILE;
-        gctx.fillStyle = 'rgba(0,255,100,0.4)';
-        gctx.fillRect(px, py, TILE, TILE);
-        gctx.strokeStyle = 'rgba(0,255,100,0.9)';
-        gctx.lineWidth = 2;
-        gctx.strokeRect(px, py, TILE, TILE);
-        gctx.fillStyle = 'rgba(0,255,100,0.9)';
-        gctx.font = 'bold 10px sans-serif';
-        gctx.fillText('→Map' + tr.tid, px + 2, py + 10);
+        if (used) {
+          gctx.fillStyle = 'rgba(255,200,0,0.5)';
+          gctx.fillRect(px, py, TILE, TILE);
+          gctx.strokeStyle = 'rgba(255,200,0,0.9)';
+          gctx.lineWidth = 2;
+          gctx.strokeRect(px, py, TILE, TILE);
+          gctx.fillStyle = '#ffcc00';
+          gctx.font = 'bold 10px sans-serif';
+          gctx.fillText('✓Map' + tr.tid, px + 2, py + 10);
+        } else {
+          gctx.fillStyle = 'rgba(0,255,100,0.4)';
+          gctx.fillRect(px, py, TILE, TILE);
+          gctx.strokeStyle = 'rgba(0,255,100,0.9)';
+          gctx.lineWidth = 2;
+          gctx.strokeRect(px, py, TILE, TILE);
+          gctx.fillStyle = 'rgba(0,255,100,0.9)';
+          gctx.font = 'bold 10px sans-serif';
+          gctx.fillText('→Map' + tr.tid, px + 2, py + 10);
+        }
       });
     }
   }
@@ -415,8 +430,19 @@ function loadMap(mapId) {
 // 地图列表（内嵌数据，避免 file:// 下 fetch 被拦截）
 var MAP_LIST = [{"id":1,"w":17,"h":13,"link":false},{"id":2,"w":17,"h":13,"link":true},{"id":3,"w":61,"h":101,"link":true},{"id":5,"w":28,"h":16,"link":true},{"id":6,"w":17,"h":13,"link":false},{"id":7,"w":28,"h":29,"link":true},{"id":9,"w":17,"h":13,"link":false},{"id":10,"w":17,"h":13,"link":true},{"id":13,"w":17,"h":13,"link":false},{"id":14,"w":17,"h":13,"link":false},{"id":15,"w":17,"h":13,"link":false},{"id":16,"w":35,"h":52,"link":true},{"id":17,"w":17,"h":13,"link":false},{"id":18,"w":17,"h":13,"link":false},{"id":25,"w":17,"h":13,"link":true},{"id":26,"w":47,"h":39,"link":true},{"id":27,"w":17,"h":13,"link":true},{"id":28,"w":17,"h":13,"link":true},{"id":29,"w":17,"h":13,"link":true},{"id":30,"w":17,"h":13,"link":true},{"id":31,"w":17,"h":13,"link":true},{"id":33,"w":17,"h":13,"link":true},{"id":34,"w":17,"h":13,"link":true},{"id":35,"w":17,"h":13,"link":true},{"id":38,"w":17,"h":13,"link":true},{"id":39,"w":17,"h":13,"link":true},{"id":40,"w":17,"h":13,"link":true},{"id":43,"w":27,"h":27,"link":true},{"id":44,"w":17,"h":13,"link":true},{"id":51,"w":17,"h":13,"link":false},{"id":53,"w":55,"h":35,"link":true},{"id":54,"w":33,"h":26,"link":true},{"id":55,"w":17,"h":13,"link":true},{"id":56,"w":17,"h":13,"link":false},{"id":66,"w":45,"h":45,"link":true},{"id":68,"w":61,"h":101,"link":true},{"id":75,"w":17,"h":13,"link":false},{"id":76,"w":17,"h":13,"link":true},{"id":83,"w":21,"h":26,"link":true},{"id":91,"w":48,"h":28,"link":true},{"id":93,"w":17,"h":13,"link":true},{"id":107,"w":39,"h":44,"link":true},{"id":109,"w":61,"h":101,"link":true},{"id":114,"w":27,"h":15,"link":false},{"id":116,"w":25,"h":30,"link":true},{"id":117,"w":27,"h":28,"link":true},{"id":118,"w":17,"h":13,"link":false},{"id":120,"w":70,"h":50,"link":false},{"id":125,"w":17,"h":28,"link":true},{"id":137,"w":70,"h":50,"link":true},{"id":138,"w":17,"h":13,"link":false},{"id":139,"w":17,"h":13,"link":true},{"id":142,"w":17,"h":13,"link":false},{"id":144,"w":35,"h":52,"link":true},{"id":145,"w":16,"h":23,"link":true},{"id":148,"w":17,"h":13,"link":true},{"id":149,"w":17,"h":13,"link":false},{"id":152,"w":44,"h":43,"link":true},{"id":154,"w":17,"h":13,"link":true},{"id":157,"w":81,"h":60,"link":true},{"id":251,"w":26,"h":18,"link":true},{"id":252,"w":19,"h":20,"link":true},{"id":260,"w":47,"h":39,"link":true},{"id":262,"w":17,"h":13,"link":true},{"id":264,"w":26,"h":25,"link":true},{"id":268,"w":17,"h":13,"link":true},{"id":270,"w":18,"h":14,"link":true},{"id":271,"w":14,"h":10,"link":true},{"id":272,"w":17,"h":13,"link":false},{"id":273,"w":35,"h":52,"link":true},{"id":274,"w":18,"h":16,"link":true},{"id":280,"w":17,"h":13,"link":false},{"id":281,"w":34,"h":27,"link":true}];
 
-// 已探索地图（localStorage 持久化）
+// 已探索地图 & 已使用传送点
 var visitedMaps = new Set();
+var usedTransfers = [];
+
+// 从 watch-game 自动记录的数据加载
+if (typeof VISITED_MAPS !== 'undefined') {
+  VISITED_MAPS.forEach(function(id){ visitedMaps.add(id); });
+}
+if (typeof USED_TRANSFERS !== 'undefined') {
+  usedTransfers = USED_TRANSFERS;
+}
+
+// 从 localStorage 补充（手动访问的记录）
 try {
   var saved = JSON.parse(localStorage.getItem('rpgmaper_visited') || '[]');
   saved.forEach(function(id){ visitedMaps.add(id); });
@@ -462,7 +488,17 @@ function rebuildDropdown() {
 
 // 初始化
 var allMapIds = MAP_LIST.map(function(m){return m.id;});
-visitedMaps.add(3);
+var defaultMap = 3;
+
+// 如果 watch-game 记录了已探索地图就用它，否则 fallback
+if (visitedMaps.size === 0) {
+  visitedMaps.add(3);
+  // 自动开上帝模式（初次使用没有任何记录）
+  document.getElementById('godMode').checked = true;
+} else {
+  // 有记录 → 默认用第一个已探索地图
+  defaultMap = Array.from(visitedMaps).sort(function(a,b){return a-b})[0];
+}
 try { localStorage.setItem('rpgmaper_visited', JSON.stringify(Array.from(visitedMaps))); } catch(e) {}
 
 // 确保 DOM 就绪后初始化下拉框
@@ -470,20 +506,13 @@ function initDropdown() {
   var sel = document.getElementById('mapSelect');
   if (!sel) { setTimeout(initDropdown, 50); return; }
   rebuildDropdown();
-  // 选中 Map3
+  // 选第一个已探索地图
   for (var i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value === '3') { sel.selectedIndex = i; break; }
+    if (sel.options[i].value === String(defaultMap)) { sel.selectedIndex = i; break; }
   }
-  loadMap(3);
+  loadMap(defaultMap);
 }
 initDropdown();
-
-// 加载 watch-game 自动记录的已探索地图
-if (typeof VISITED_MAPS !== 'undefined' && VISITED_MAPS.length > 0) {
-  VISITED_MAPS.forEach(function(id) { visitedMaps.add(id); });
-  try { localStorage.setItem('rpgmaper_visited', JSON.stringify(Array.from(visitedMaps))); } catch(e) {}
-  rebuildDropdown();
-}
 
 // 上帝模式切换
 document.getElementById('godMode').addEventListener('change', rebuildDropdown);
