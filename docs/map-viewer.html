@@ -90,6 +90,7 @@
 <script>
 const TILE = 48; // RPG Maker 标准 tile 尺寸
 var TRANSFERS = {}; // 提前声明，后面会从内嵌数据或 WATCH_TRANSFERS 填充
+var PARALLAX_MAPS = {10:'esfan_013_1920.1080',17:'021_guildroom_y_19201440',25:'dlfanfantasy01',27:'al2bg11',28:'026_marine_y_19201440',29:'esfan_001y_19201440',30:'014_sinn-roomk_y_19201440',31:'esfan_004_19201440',33:'esprinature_02_1920.1080',34:'130sokon',35:'gyokuza_cl_1080',38:'kadofan_005_1920.1080',39:'021_guildroom_19201440',40:'bg018a1_kp_c_19201080',44:'130rouy',51:'esfan_009_1920.1080',55:'bg007a1_kp_b_19201080',56:'library_s_1080',75:'026_marine_19201440',76:'esfan_001_19201440',93:'esfan_002n_19201440',118:'bg012a1_kp_e_19201080',139:'014_sinn-room_19201440',142:'020_guild_19201440',148:'al2bg04',149:'al2bg02',154:'esprinature_01_1920.1080',262:'tg-pbg-vlg-01-inn-01-aEX',268:'al2bg09',270:'dlfanfantasy03n',280:'kadofan_003_1920.1080'};
 
 const mapCanvas = document.getElementById('mapCanvas');
 const gridCanvas = document.getElementById('gridCanvas');
@@ -424,8 +425,19 @@ document.getElementById('exportTransferBtn').addEventListener('click', function(
 
 
 function loadMap(mapId) {
-  var f = mapId === 'seamless' ? 'seamless.png' : 'Map' + String(mapId).padStart(4, '0') + '.png';
-  var path = mapId === 'seamless' ? 'seamless.png' : 'maps/' + f;
+  var isSeamless = mapId === 'seamless';
+  var pname = PARALLAX_MAPS[mapId];
+  var f, path;
+  if (isSeamless) {
+    f = 'seamless.png';
+    path = 'seamless.png';
+  } else if (pname) {
+    f = 'parallax_' + pname + '.png';
+    path = 'parallax/' + f;
+  } else {
+    f = 'Map' + String(mapId).padStart(4, '0') + '.png';
+    path = 'maps/' + f;
+  }
   img.src = path;
   img._mapId = mapId;
   document.getElementById('status').textContent = '加载 ' + f + '...';
