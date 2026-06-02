@@ -99,38 +99,46 @@ async function main() {
     }
   }
 
-  // 计算地图间偏移量
+  // 计算地图间偏移量（BFS + 冲突报告）
   console.log('\n=== 传送连接（' + connections.length + ' 张地图有传送）===\n');
 
-  var offsets = {};
-  var queue = [];
+  var offsets = {}, adj = {};
+  connections.forEach(function(c) { adj[c.mapId] = c.transfers; });
 
-  // 从第一张有传送的地图开始
-  if (connections.length > 0) {
-    var startId = connections[0].mapId;
-    offsets[startId] = {x: 0, y: 0};
-    queue.push(startId);
+  var hubs = {};
+  connections.forEach(function(c) {
+    c.transfers.forEach(function(t) {
+      var tid = Number(t.toMapId);
+      if (tid) hubs[c.mapId] = (hubs[c.mapId] || 0) + 1;
+    });
+  });
+  var startId = Number(Object.keys(hubs).sort(function(a,b){return hubs[b]-hubs[a]})[0]);
+  offsets[startId] = {x: 0, y: 0};
+  var queue = [startId];
 
-    // BFS 遍历
-    while (queue.length > 0) {
-      var currentId = queue.shift();
-      var conn = connections.find(function(c){return c.mapId === currentId});
-      if (!conn) continue;
-      var curOff = offsets[currentId];
+  while (queue.length > 0) {
+    var curId = queue.shift(), cur = offsets[curId];
+    if (!adj[curId]) continue;
+    adj[curId].forEach(function(tr) {
+      var tid = Number(tr.toMapId);
+      if (!tid || offsets[tid]) return;
+      offsets[tid] = {x: cur.x + tr.fromX - tr.toX, y: cur.y + tr.fromY - tr.toY};
+      queue.push(tid);
+      console.log('  Map' + curId + ' → Map' + tid + '  (' + offsets[tid].x + ',' + offsets[tid].y + ')');
+    });
+  }
 
-      for (var t = 0; t < conn.transfers.length; t++) {
-        var tr = conn.transfers[t];
-        var targetId = tr.toMapId;
-        if (offsets[targetId] !== undefined) continue;  // 已算过
-
-        // 计算偏移：玩家在 curMap 的 (tr.fromX,tr.fromY) 传送到 targetMap 的 (tr.toX,tr.toY)
-        // 两张地图的 (tr.fromX - tr.toX, tr.fromY - tr.toY) 对齐
-        offsets[targetId] = {
-          x: curOff.x + tr.fromX - tr.toX,
-          y: curOff.y + tr.fromY - tr.toY
-        };
-        queue.push(targetId);
-        console.log('  Map' + currentId + '[' + tr.fromX + ',' + tr.fromY + '] → Map' + targetId + '[' + tr.toX + ',' + tr.toY + ']  offset=(' + offsets[targetId].x + ',' + offsets[targetId].y + ')');
+  // 冲突检测（只检测不修正）
+  var conflicts = {};
+  for (var c = 0; c < connections.length; c++) {
+    for (var t = 0; t < connections[c].transfers.length; t++) {
+      var tr = connections[c].transfers[t], tid = Number(tr.toMapId);
+      if (!tid || !offsets[connections[c].mapId] || !offsets[tid]) continue;
+      var cx = offsets[connections[c].mapId].x + tr.fromX - tr.toX;
+      var cy = offsets[connections[c].mapId].y + tr.fromY - tr.toY;
+      if (Math.abs(cx - offsets[tid].x) + Math.abs(cy - offsets[tid].y) > 1) {
+        if (!conflicts[tid]) conflicts[tid] = [];
+        conflicts[tid].push({expected: cx+','+cy, actual: offsets[tid].x+','+offsets[tid].y});
       }
     }
   }
@@ -144,10 +152,21 @@ async function main() {
   console.log('视差地图(跳过): ' + parallaxMaps.length);
   console.log('未连接的地图: ' + unlinked.length);
 
+  if (Object.keys(conflicts).length > 0) {
+    console.log('\n=== 偏移冲突（同一地图被多条路径指向不同位置）===');
+    for (var id in conflicts) {
+      console.log('  Map' + id);
+      conflicts[id].forEach(function(cf) {
+        console.log('    BFS位置: (' + cf.actual + ') 另一路径推断: (' + cf.expected + ')');
+      });
+    }
+  }
+
   // 保存连接数据
   var out = {
     offsets: offsets,
     connections: connections,
+    conflicts: conflicts,
     parallaxMaps: parallaxMaps,
     unlinkedMaps: unlinked
   };
