@@ -47,9 +47,9 @@ async function main() {
   });
   var allTilesets = JSON.parse(r1.result.value);
 
-  // 创建全局 PIXI 应用
+  // 创建 PIXI 应用（forceCanvas 纯软件渲染，不碰 WebGL）
   await Runtime.evaluate({
-    expression: `if(!window._xp){window._xp=new PIXI.Application({width:32,height:32,preserveDrawingBuffer:true,backgroundColor:0});window._xp.destroy=function(){}}`,
+    expression: `if(!window._xp){window._xp=new PIXI.Application({width:32,height:32,forceCanvas:true,backgroundColor:0});window._xp.destroy=function(){}}`,
     returnByValue: false
   });
 
