@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>RPGmaper - 地图查看器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; color: #ccc; font: 14px/1.4 sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+  .toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #222; border-bottom: 1px solid #333; flex-shrink: 0; }
+  .toolbar label { color: #999; }
+  .toolbar input[type=number] { width: 60px; padding: 3px 6px; background: #333; border: 1px solid #444; color: #ccc; border-radius: 3px; }
+  .toolbar button { padding: 4px 14px; background: #3a6ea5; border: none; color: #fff; border-radius: 3px; cursor: pointer; }
+  .toolbar button:hover { background: #4a7eb5; }
+  .toolbar .info { margin-left: auto; color: #888; font-size: 12px; }
+
+  .container { flex: 1; overflow: auto; position: relative; display: flex; }
+  .canvas-wrap { position: relative; }
+  canvas { display: block; position: absolute; top: 0; left: 0; }
+
+  .sidebar { width: 280px; background: #222; border-left: 1px solid #333; padding: 12px; overflow-y: auto; flex-shrink: 0; font-size: 12px; }
+  .sidebar h3 { color: #999; margin-bottom: 8px; font-size: 13px; }
+  .sidebar .sel-list { list-style: none; }
+  .sidebar .sel-list li { padding: 2px 6px; margin: 1px 0; background: #2a2a2a; border-radius: 2px; display: flex; justify-content: space-between; cursor: pointer; }
+  .sidebar .sel-list li:hover { background: #333; }
+  .sidebar .sel-list li .del { color: #c55; cursor: pointer; }
+  .sidebar .status { color: #666; font-style: italic; }
+
+  .coord-label { position: absolute; pointer-events: none; color: rgba(255,255,200,0.8); font-size: 10px; text-shadow: 0 0 3px #000; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <label>格子尺寸</label>
+  <input type="number" id="tileSize" value="24" min="8" max="96" step="2">
+  <label>网格</label>
+  <input type="checkbox" id="showGrid" checked>
+  <label>标签</label>
+  <input type="checkbox" id="showLabels">
+  <button id="clearSel">清空选择</button>
+  <button id="zoomFit">适配窗口</button>
+  <span class="info" id="status">就绪</span>
+</div>
+
+<div class="container">
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="mapCanvas"></canvas>
+    <canvas id="gridCanvas"></canvas>
+  </div>
+  <div class="sidebar">
+    <h3>已选择的格子</h3>
+    <ul class="sel-list" id="selList"></ul>
+    <p class="status" id="selStatus">点击地图选择格子</p>
+    <hr style="border-color:#333;margin:12px 0;">
+    <h3>操作</h3>
+    <button id="saveBtn" style="width:100%;margin-bottom:6px;">保存选择</button>
+    <button id="exportBtn" style="width:100%;">导出为JSON</button>
+    <hr style="border-color:#333;margin:12px 0;">
+    <h3>偏移修正</h3>
+    <p style="color:#666;margin-bottom:6px;">选择两张地图的交界处，标记对齐点</p>
+    <button id="calcOffsetBtn" style="width:100%;">计算选中格子的偏移</button>
+    <div id="calcResult" style="margin-top:6px;color:#8c8;"></div>
+  </div>
+</div>
+
+<script>
+const TILE = 48; // RPG Maker 标准 tile 尺寸
+
+const mapCanvas = document.getElementById('mapCanvas');
+const gridCanvas = document.getElementById('gridCanvas');
+const ctx = mapCanvas.getContext('2d');
+const gctx = gridCanvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+
+let img = new Image();
+let imgLoaded = false;
+let scale = 1;
+let offsetX = 0, offsetY = 0;
+let selections = []; // [{mapId, tileX, tileY, absX, absY}, ...]
+let dragMode = false;
+let dragStart = null;
+
+// 加载无缝地图
+img.onload = function() {
+  mapCanvas.width = img.width;
+  mapCanvas.height = img.height;
+  gridCanvas.width = img.width;
+  gridCanvas.height = img.height;
+  drawMap();
+  drawGrid();
+  imgLoaded = true;
+  document.getElementById('status').textContent = img.width + 'x' + img.height + 'px 已加载';
+};
+img.src = 'seamless.png';
+
+// 绘制底图
+function drawMap() {
+  ctx.drawImage(img, 0, 0);
+}
+
+// 绘制网格
+function drawGrid() {
+  gctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+  if (!document.getElementById('showGrid').checked) return;
+  const tileRender = parseInt(document.getElementById('tileSize').value);
+  const w = gridCanvas.width, h = gridCanvas.height;
+  gctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  gctx.lineWidth = 1;
+  for (let x = 0; x <= w; x += TILE) {
+    gctx.beginPath(); gctx.moveTo(x, 0); gctx.lineTo(x, h); gctx.stroke();
+  }
+  for (let y = 0; y <= h; y += TILE) {
+    gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(w, y); gctx.stroke();
+  }
+  // 已选择的格子高亮
+  selections.forEach(function(s) {
+    const px = s.absX * TILE, py = s.absY * TILE;
+    gctx.fillStyle = 'rgba(0,180,255,0.25)';
+    gctx.fillRect(px, py, TILE, TILE);
+    gctx.strokeStyle = 'rgba(0,180,255,0.8)';
+    gctx.lineWidth = 2;
+    gctx.strokeRect(px, py, TILE, TILE);
+  });
+  // 标签
+  if (document.getElementById('showLabels').checked) {
+    gctx.fillStyle = 'rgba(255,255,200,0.6)';
+    gctx.font = '9px sans-serif';
+    for (let y = 0; y < h; y += TILE * 4) {
+      for (let x = 0; x < w; x += TILE * 4) {
+        const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
+        gctx.fillText('(' + tx + ',' + ty + ')', x + 2, y + 10);
+      }
+    }
+  }
+}
+
+// 点击处理
+function handleClick(e) {
+  const rect = gridCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  // 计算 tileset 坐标
+  const tx = Math.floor(mx / TILE);
+  const ty = Math.floor(my / TILE);
+  if (tx < 0 || ty < 0 || tx * TILE >= img.width || ty * TILE >= img.height) return;
+
+  // 检查是否已选择
+  const existing = selections.findIndex(function(s) { return s.absX === tx && s.absY === ty; });
+  if (existing >= 0) {
+    selections.splice(existing, 1);
+  } else {
+    // 尝试找地图ID
+    const mapInfo = findMapAt(tx, ty);
+    selections.push({
+      mapId: mapInfo ? mapInfo.id : null,
+      tileX: mapInfo ? tx - mapInfo.ox : tx,
+      tileY: mapInfo ? ty - mapInfo.oy : ty,
+      absX: tx,
+      absY: ty,
+      absPx: tx * TILE,
+      absPy: ty * TILE
+    });
+  }
+  updateUI();
+}
+
+// 查找某个绝对坐标属于哪张地图
+function findMapAt(absX, absY) {
+  // 从 connections 数据查找
+  if (window._mapOffsets && window._mapOffsets.length) {
+    for (let i = 0; i < window._mapOffsets.length; i++) {
+      const m = window._mapOffsets[i];
+      if (absX >= m.ox && absX < m.ox + m.w &&
+          absY >= m.oy && absY < m.oy + m.h) {
+        return {id: m.id, ox: m.ox, oy: m.oy};
+      }
+    }
+  }
+  return null;
+}
+
+function updateUI() {
+  drawGrid();
+  renderSidebar();
+  document.getElementById('selStatus').textContent = selections.length + ' 个格子已选择';
+}
+
+function renderSidebar() {
+  const list = document.getElementById('selList');
+  list.innerHTML = '';
+  selections.forEach(function(s, i) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span>(' + s.absX + ',' + s.absY + ')' +
+      (s.mapId ? ' Map' + s.mapId + '[' + s.tileX + ',' + s.tileY + ']' : '') +
+      '</span><span class="del" data-i="' + i + '">✕</span>';
+    li.querySelector('.del').addEventListener('click', function(e) {
+      e.stopPropagation();
+      selections.splice(parseInt(this.dataset.i), 1);
+      updateUI();
+    });
+    list.appendChild(li);
+  });
+}
+
+// 事件绑定
+gridCanvas.addEventListener('click', handleClick);
+
+document.getElementById('clearSel').addEventListener('click', function() {
+  selections = [];
+  updateUI();
+});
+
+document.getElementById('tileSize').addEventListener('change', drawGrid);
+document.getElementById('showGrid').addEventListener('change', drawGrid);
+document.getElementById('showLabels').addEventListener('change', drawGrid);
+
+document.getElementById('saveBtn').addEventListener('click', function() {
+  const data = JSON.stringify(selections, null, 2);
+  // 下载到本地
+  const blob = new Blob([data], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'selections.json';
+  a.click();
+  document.getElementById('status').textContent = '已保存 selections.json';
+});
+
+document.getElementById('exportBtn').addEventListener('click', function() {
+  const data = JSON.stringify(selections, null, 2);
+  document.getElementById('status').textContent = selections.length + ' 个格子 (准备导出)';
+  const blob = new Blob([data], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'selections.json';
+  a.click();
+});
+
+document.getElementById('calcOffsetBtn').addEventListener('click', function() {
+  const div = document.getElementById('calcResult');
+  if (selections.length < 2) {
+    div.textContent = '需要至少选择 2 个格子';
+    return;
+  }
+  div.textContent = selections.map(function(s) {
+    return '(' + s.absX + ',' + s.absY + ')' + (s.mapId ? ' Map' + s.mapId + '[' + s.tileX + ',' + s.tileY + ']' : '');
+  }).join(' → ');
+});
+
+// 加载地图偏移数据
+Promise.all([
+  fetch('connections.json').then(function(r) { return r.json(); }),
+  fetch('map_sizes.json').then(function(r) { return r.json(); }).catch(function() { return {}; })
+]).then(function(results) {
+  var data = results[0], tilesData = results[1];
+  window._mapOffsets = [];
+  var offsets = data.offsets || {};
+  for (var id in offsets) {
+    var t = tilesData[id] || {};
+    window._mapOffsets.push({
+      id: parseInt(id),
+      ox: offsets[id].x,
+      oy: offsets[id].y,
+      w: t.w || 0,
+      h: t.h || 0
+    });
+  }
+}).catch(function(e) { console.log('skip map data:', e); });
+</script>
+</body>
+</html>
