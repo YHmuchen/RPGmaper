@@ -17,7 +17,6 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = parseInt(process.argv[2]) || 3456;
-const SERVER_NAME = 'RPGmaper-API/1.0';
 const TILE = 48;
 const PROJECTS_DIR = path.resolve(__dirname, '..', 'maps', 'projects');
 
@@ -298,7 +297,8 @@ const server = http.createServer((req, res) => {
       if (!parts[2]) return json(res, 400, { ok: false, error: '缺少项目名称' });
       const rawName = decodeURIComponent(parts[2]);
       const projectName = path.basename(rawName);
-      if (projectName !== rawName) return json(res, 400, { ok: false, error: '非法的项目名称' });
+      if (projectName !== rawName || projectName === '.' || projectName === '..')
+        return json(res, 400, { ok: false, error: '非法的项目名称' });
       const filePath = path.join(PROJECTS_DIR, projectName, 'transfers_data.js');
       if (!fs.existsSync(filePath)) {
         return json(res, 404, { ok: false, error: '未找到项目或传送数据' });
@@ -309,14 +309,14 @@ const server = http.createServer((req, res) => {
 
       // /api/layout/:projectName/:mapId — 返回布局
       if (isLayout && parts[3]) {
-        const layout = computeLayout(projectName, parts[3]);
+        const layout = computeLayout(projectName, Number(parts[3]));
         if (!layout) return json(res, 404, { ok: false, error: `地图 ${parts[3]} 无传送关系` });
         return json(res, 200, { ok: true, data: layout });
       }
 
       // /api/graph/:projectName/:mapId — 一代子图
       if (isGraph && parts[3]) {
-        const sub = oneHopSub(adj, parts[3]);
+        const sub = oneHopSub(adj, Number(parts[3]));
         if (!sub) return json(res, 404, { ok: false, error: `地图 ${parts[3]} 无传送关系` });
         return json(res, 200, { ok: true, data: { centerId: Number(parts[3]), graph: sub } });
       }
@@ -344,6 +344,7 @@ const server = http.createServer((req, res) => {
 
     json(res, 404, { ok: false, error: '未找到接口' });
   } catch (e) {
+    console.error('[ERROR]', req.url, e.message);
     json(res, 500, { ok: false, error: '内部错误' });
   }
 });

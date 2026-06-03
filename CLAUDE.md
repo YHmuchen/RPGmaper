@@ -68,12 +68,6 @@ RPGmaper 是一个从 RPG Maker MZ/MV 游戏提取地图、tileset 和视差背�
 ```
 RPGmaper/
 │
-### 双管线设计
-
-| 管线 | 方式 | 适用场景 |
-|------|------|----------|
-| **离线管线** (主力) | 直接读游戏目录的 JSON + 加密 PNG，用 sharp 像素级合成 tile | 批量导出，无需运行游戏 |
-| **CDP 管线** (旧/辅助) | 通过 Chrome DevTools Protocol 连接运行中的游戏进程，在游戏内 PIXI 渲染后截取 | 游戏运行时即时导出，适合少量地图调试 |
 
 ### 入口方式
 
@@ -132,7 +126,6 @@ RPGmaper/
 ### 杂项
 
 - **加密密钥**: `System.json` 中 `encryptionKey` 字段，32 位 hex 字符串
-- **kagent 集成**: `.cursor/hooks/` 和 `.claude/hooks/` 中配置了自动捕获 hook，编辑文件后自动记录上下文到 `.kagent/`
 
 ## 常用命令
 
@@ -172,14 +165,4 @@ npm start
 rpgmaper.bat
 ```
 
-### 旧版 CDP 管线（需要游戏已运行且开启 --remote-debugging-port=9222）
 
-```bash
-```
-
-### 集成启动
-
-```bash
-# 根据 mtool 配置生成启动批处理（整合 CDP + mtool 翻译 + 地图监听）
-# 生成后运行 launch.bat 即可一键启动
-```
