@@ -27,7 +27,16 @@ const TILE_ID_A3 = 4352;
 const TILE_ID_A4 = 5888;
 const TILE_ID_MAX = 8192;
 
-const GAME_DIR = 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
+// 游戏目录：优先用命令行参数 > 环境变量 > 默认值
+const GAME_DIR = (() => {
+  const args = process.argv.slice(2);
+  // 第一个不以数字开头的参数视为游戏目录路径
+  const dirArg = args.find(a => isNaN(parseInt(a)));
+  if (dirArg) return dirArg;
+  if (process.env.GAME_DIR) return process.env.GAME_DIR;
+  return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
+})();
+
 const TS_DIR   = 'C:/Users/Muchen/maps/tilesets/';
 const OUT_DIR  = path.resolve(__dirname, '..', 'docs', 'maps');
 const PARALLAX_DIR = path.resolve(__dirname, '..', 'docs', 'parallax');
@@ -35,11 +44,15 @@ const PARALLAX_DIR = path.resolve(__dirname, '..', 'docs', 'parallax');
 const PARALLAX_IMG_DIR = GAME_DIR + '/img/parallaxes/';
 
 // 加密密钥（来自 System.json）
-const ENC_KEY = (() => {
-  const sys = JSON.parse(fs.readFileSync(GAME_DIR + '/data/System.json', 'utf8'));
-  return sys.encryptionKey || '';
+const ENC_KEY_BYTES = (() => {
+  try {
+    const sys = JSON.parse(fs.readFileSync(GAME_DIR + '/data/System.json', 'utf8'));
+    const key = sys.encryptionKey || '';
+    return key.length >= 32 ? key.match(/.{2}/g).map(h => parseInt(h, 16)) : [];
+  } catch (e) {
+    return [];
+  }
 })();
-const ENC_KEY_BYTES = ENC_KEY.match(/.{2}/g).map(h => parseInt(h, 16));
 
 // ─── Tile 类型判定 ─────────────────────────────────────────────
 const isA1   = id => id >= TILE_ID_A1  && id < TILE_ID_A2;
@@ -318,7 +331,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 
   // 视差图处理：若地图有 parallax 且无 tile，直接用视差图
   if (map.parallaxName && map.parallaxName.length > 0) {
-    return await renderParallaxMap(map, mapId);
+    return await renderParallaxMap(map, mapId, tilesets);
   }
 
   const w = map.width, h = map.height;
@@ -374,18 +387,6 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 
       addTile(tileId0, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
       addTile(tileId1, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
-
-      // 阴影
-      if (shadowBits & 0x0f) {
-        for (let i = 0; i < 4; i++) {
-          if (shadowBits & (1 << i)) {
-            const dx1 = dx + (i % 2) * HALF;
-            const dy1 = dy + Math.floor(i / 2) * HALF;
-            // 阴影直接渲染到 lower buf（因为是临时操作）
-          }
-        }
-      }
-
       addTile(tileId2, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
       addTile(tileId3, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
     }
@@ -432,7 +433,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 }
 
 // ─── 渲染视差地图 ──────────────────────────────────────────────
-async function renderParallaxMap(map, mapId) {
+async function renderParallaxMap(map, mapId, tilesets) {
   const pName = map.parallaxName;
   const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
 
