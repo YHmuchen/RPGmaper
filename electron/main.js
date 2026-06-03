@@ -108,8 +108,7 @@ ipcMain.handle('run-script', async (event, scriptName, gameDir) => {
 
   try {
     await new Promise((resolve, reject) => {
-      const proc = spawn(process.execPath, [scriptPath, gameDir], {
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      const proc = spawn("node", [scriptPath, gameDir], {
         cwd: PROJECT_ROOT,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
