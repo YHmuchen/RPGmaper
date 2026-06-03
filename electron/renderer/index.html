@@ -91,7 +91,7 @@ header .right { margin-left: auto; }
 </div>
 
 <script>
-const { electronAPI } = window;
+// electronAPI 由 preload 通过 contextBridge 注入
 
 function log(text, type) {
   const panel = document.getElementById('logPanel');
