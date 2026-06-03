@@ -199,11 +199,10 @@ function drawGrid() {
             return u.fromMap === mid && u.fx === tr.fx && u.fy === tr.fy;
           });
         });
-        // 判断来源类型：全为直接传送、全为公共事件、混合
-        var allDirect = trs.every(function(t){return t.source==='map'||!t.source;});
-        var allCE = trs.every(function(t){return t.source && t.source.indexOf('commonEvent')===0;});
+        // 判断来源类型：全为公共事件、混合
+        var isPureCE = trs.every(function(t){return t.source && t.source.indexOf('commonEvent')===0;});
         // 多目标文本
-        var label;
+        var label, textColor;
         if (trs.length === 1) {
           label = (anyUsed ? '✓' : '→') + 'Map' + trs[0].tid;
         } else {
@@ -211,22 +210,23 @@ function drawGrid() {
           if (anyUsed) tids = tids.map(function(t){ return '✓' + t; });
           label = tids.join('/');
         }
-        // 颜色：已用=黄，直接=绿，公共事件=蓝，混合=青绿
+        // 颜色：已用=黄，直接=绿，公共事件=蓝
         if (anyUsed) {
           gctx.fillStyle = 'rgba(255,200,0,0.5)';
           gctx.strokeStyle = 'rgba(255,200,0,0.9)';
-          gctx.fillStyle = anyUsed ? '#ffcc00' : 'rgba(0,255,100,0.9)';
-        } else if (allCE) {
+          textColor = '#ffcc00';
+        } else if (isPureCE) {
           gctx.fillStyle = 'rgba(0,150,255,0.4)';
           gctx.strokeStyle = 'rgba(0,150,255,0.9)';
-          gctx.fillStyle = 'rgba(0,180,255,0.9)';
+          textColor = 'rgba(0,180,255,0.9)';
         } else {
           gctx.fillStyle = 'rgba(0,255,100,0.4)';
           gctx.strokeStyle = 'rgba(0,255,100,0.9)';
-          gctx.fillStyle = 'rgba(0,255,100,0.9)';
+          textColor = 'rgba(0,255,100,0.9)';
         }
         gctx.fillRect(px, py, TILE, TILE);
         gctx.strokeRect(px, py, TILE, TILE);
+        gctx.fillStyle = textColor;
         gctx.font = 'bold 9px sans-serif';
         gctx.fillText(label, px + 2, py + 10);
       }
