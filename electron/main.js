@@ -113,7 +113,11 @@ ipcMain.handle('run-script', (event, scriptName, gameDir) => {
     });
 
     let output = '';
-    proc.stdout.on('data', d => { output += d.toString(); });
+    proc.stdout.on("data", d => {
+        const text = d.toString();
+        output += text;
+        try { mainWindow.webContents.send("script-output", { script: scriptName, text: text.trim() }); } catch(e) {}
+      });
     proc.stderr.on('data', d => { output += d.toString(); });
 
     proc.on('close', code => {
