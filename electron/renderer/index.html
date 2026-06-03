@@ -75,7 +75,7 @@ header .right { margin-left: auto; }
 <header>
   <h1>🗺️ RPGmaper</h1>
   <button class="primary" id="addBtn">＋ 添加游戏</button>
-  <span class="right" id="statusBar" style="color:#666;font-size:12px;"></span>
+  <span class="right" id="statusBar" style="color:#666;font-size:12px;">就绪</span>
 </header>
 
 <div class="project-list" id="projectList">
@@ -93,17 +93,15 @@ header .right { margin-left: auto; }
 <script>
 const { electronAPI } = window;
 
-// ─── 日志 ─────────────────────────────────────────────────────
 function log(text, type) {
   const panel = document.getElementById('logPanel');
   const line = document.createElement('div');
   line.className = 'log-line ' + (type || '');
-  line.textContent = text;
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + text;
   panel.appendChild(line);
   panel.scrollTop = panel.scrollHeight;
 }
 
-// ─── 项目卡片 ─────────────────────────────────────────────────
 function createProjectCard(p) {
   const card = document.createElement('div');
   card.className = 'project-card';
@@ -124,48 +122,44 @@ function createProjectCard(p) {
     </div>
   `;
 
-  // 记录游戏目录
-  card.dataset.gameDir = '';
-
-  // 按钮事件
   card.querySelector('.btn-ts').addEventListener('click', () => runOne(p.name, 'tilesets'));
   card.querySelector('.btn-map').addEventListener('click', () => runOne(p.name, 'maps'));
   card.querySelector('.btn-all').addEventListener('click', () => runAll(p.name));
   card.querySelector('.btn-del').addEventListener('click', async () => {
     if (!confirm(`删除项目「${p.name}」？所有数据将被移除。`)) return;
-    await electronAPI.deleteProject(p.name);
-    refreshList();
+    try {
+      await electronAPI.deleteProject(p.name);
+      refreshList();
+      log(`已删除: ${p.name}`, 'done');
+    } catch (e) {
+      log('删除失败: ' + e.message, 'err');
+    }
   });
 
   return card;
 }
 
-// 项目 → 游戏目录映射（从项目名推算）
-async function getGameDir(projectName) {
-  // 从 test-report.json 或已知信息中获取
-  // 暂时通过 IPC 无法反向获取，在项目添加时保存
-  const stored = localStorage.getItem('gameDirs');
-  const dirs = stored ? JSON.parse(stored) : {};
-  return dirs[projectName] || '';
-}
-
-// ─── 执行脚本 ─────────────────────────────────────────────────
 async function runOne(projectName, script) {
   const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
   const gameDir = stored[projectName];
   if (!gameDir) {
-    log(`项目「${projectName}」未关联游戏目录，请在添加时指定`, 'err');
+    log(`项目「${projectName}」未关联游戏目录`, 'err');
     return;
   }
 
   const label = script === 'tilesets' ? '导出 tileset' : '渲染地图';
-  log(`▶ [${projectName}] ${label}...`, 'info');
+  log(`▶ ${label}...`, 'info');
   document.getElementById('statusBar').textContent = `正在${label}...`;
 
-  await electronAPI.runScript(script, gameDir);
-  refreshList();
-  document.getElementById('statusBar').textContent = `${label} 完成`;
-  log(`✔ [${projectName}] ${label} 完成`, 'done');
+  try {
+    await electronAPI.runScript(script, gameDir);
+    refreshList();
+    document.getElementById('statusBar').textContent = `${label} 完成`;
+    log(`✔ ${label} 完成`, 'done');
+  } catch (e) {
+    log(`✗ ${label} 失败: ${e.message}`, 'err');
+    document.getElementById('statusBar').textContent = `${label} 失败`;
+  }
 }
 
 async function runAll(projectName) {
@@ -176,54 +170,63 @@ async function runAll(projectName) {
     return;
   }
 
-  log(`▶ [${projectName}] 全流程开始...`, 'info');
+  log(`▶ 全流程开始...`, 'info');
   document.getElementById('statusBar').textContent = '全流程执行中...';
 
-  await electronAPI.runScript('tilesets', gameDir);
-  log(`✔ [${projectName}] tileset 导出完成`, 'done');
+  try {
+    await electronAPI.runScript('tilesets', gameDir);
+    log(`✔ tileset 导出完成`, 'done');
 
-  await electronAPI.runScript('maps', gameDir);
-  log(`✔ [${projectName}] 地图渲染完成`, 'done');
+    await electronAPI.runScript('maps', gameDir);
+    log(`✔ 地图渲染完成`, 'done');
 
-  refreshList();
-  document.getElementById('statusBar').textContent = '全流程完成';
-  log(`✅ [${projectName}] 全流程完成`, 'done');
+    refreshList();
+    document.getElementById('statusBar').textContent = '全流程完成';
+    log(`✅ 全流程完成`, 'done');
+  } catch (e) {
+    log(`✗ 全流程失败: ${e.message}`, 'err');
+    document.getElementById('statusBar').textContent = '全流程失败';
+  }
 }
 
-// ─── 刷新列表 ─────────────────────────────────────────────────
 async function refreshList() {
-  const list = document.getElementById('projectList');
-  const projects = await electronAPI.scanProjects();
+  try {
+    const projects = await electronAPI.scanProjects();
+    const list = document.getElementById('projectList');
 
-  if (projects.length === 0) {
-    list.innerHTML = `
-      <div class="project-empty" id="emptyHint">
-        <div class="big">🗺️</div>
-        <p>还没有添加任何游戏</p>
-        <p style="font-size:12px;">点击上方「添加游戏」按钮选择游戏目录</p>
-      </div>`;
-    return;
+    if (projects.length === 0) {
+      list.innerHTML = '<div class="project-empty"><div class="big">🗺️</div><p>还没有添加任何游戏</p><p style="font-size:12px;">点击上方「添加游戏」按钮选择游戏目录</p></div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    projects.forEach(p => list.appendChild(createProjectCard(p)));
+    log(`已刷新列表: ${projects.length} 个项目`, 'info');
+  } catch (e) {
+    log('刷新失败: ' + e.message, 'err');
   }
-
-  list.innerHTML = '';
-  projects.forEach(p => list.appendChild(createProjectCard(p)));
 }
 
 // ─── 添加项目 ─────────────────────────────────────────────────
 document.getElementById('addBtn').addEventListener('click', async () => {
-  const projects = await electronAPI.addProject();
-  refreshList();
+  try {
+    log('打开目录选择器...', 'info');
+    const projects = await electronAPI.addProject();
+    refreshList();
+  } catch (e) {
+    log('添加失败: ' + e.message, 'err');
+  }
 });
 
 electronAPI.onProjectAdded(data => {
-  // 保存游戏目录映射
   const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
   stored[data.name] = data.gameDir;
   localStorage.setItem('gameDirs', JSON.stringify(stored));
   log(`✔ 已添加项目: ${data.name}`, 'done');
+  refreshList();
 });
 
-// ─── 脚本输出 ─────────────────────────────────────────────────
+// ─── 脚本事件 ─────────────────────────────────────────────────
 electronAPI.onScriptOutput(data => {
   if (data.text) log(data.text, 'info');
 });
@@ -234,7 +237,8 @@ electronAPI.onScriptDone(data => {
   }
 });
 
-// ─── 初始加载 ─────────────────────────────────────────────────
+// ─── 初始 ─────────────────────────────────────────────────────
+log('应用已启动', 'info');
 refreshList();
 </script>
 </body>
