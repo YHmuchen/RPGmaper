@@ -89,6 +89,8 @@ let selections = [];
 let MAP_LIST = [];
 let PARALLAX_MAPS = {};
 let TRANSFERS = {};
+let _entrySource = null; // { fromMap, fromFx, fromFy, toMap, toTx, toTy }
+let _skipSelectChange = false;
 
 document.getElementById('projectName').textContent = '🗺️ ' + PROJECT_NAME;
 
@@ -143,7 +145,9 @@ function resolveMapPath(mapId) {
   return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '.png';
 }
 
-function loadMap(mapId) {
+function loadMap(mapId, entrySource) {
+  mapId = Number(mapId);
+  _entrySource = entrySource || null;
   const path = resolveMapPath(mapId);
   img.onerror = function() {
     document.getElementById('status').textContent = '地图 ' + mapId + ' 不存在，请先生成地图数据';
@@ -161,6 +165,13 @@ function loadMap(mapId) {
     document.getElementById('status').textContent = img.width + '×' + img.height + 'px';
   };
   img.src = path;
+  // 如果图片已缓存，onload 可能在上面的 src 赋值时同步触发，
+  // 但那时 _entrySource 可能被 change 事件提前清了。
+  // 确保 entrySource 生效后重绘。
+  if (entrySource && img.complete && img.naturalWidth > 0) {
+    window._currentMapId = mapId;
+    drawGrid();
+  }
 }
 
 // ─── 绘制 ─────────────────────────────────────────────────────
@@ -199,12 +210,24 @@ function drawGrid() {
         const first = trs[0];
         const px = first.fx * TILE, py = first.fy * TILE;
         const isPureCE = trs.every(t => t.source && t.source.indexOf('commonEvent') === 0);
+        // 匹配回头传送点：tid=来源地图 且传送点位置在落点±2格内
+        const isEntry = _entrySource && Number(_entrySource.toMap) === Number(mid)
+          && trs.some(t => Number(t.tid) === Number(_entrySource.fromMap)
+            && Math.abs(Number(t.fx) - Number(_entrySource.toTx)) <= 2
+            && Math.abs(Number(t.fy) - Number(_entrySource.toTy)) <= 2);
         let textColor;
-        if (isPureCE) {
+        if (isEntry) {
+          // 黄 = 可回到来源地图的传送点
+          gctx.fillStyle = 'rgba(255,200,0,0.5)';
+          gctx.strokeStyle = 'rgba(255,200,0,0.9)';
+          textColor = '#ffcc00';
+        } else if (isPureCE) {
+          // 蓝 = 纯公共事件
           gctx.fillStyle = 'rgba(0,150,255,0.4)';
           gctx.strokeStyle = 'rgba(0,150,255,0.9)';
           textColor = 'rgba(0,180,255,0.9)';
         } else {
+          // 绿 = 直接地图传送
           gctx.fillStyle = 'rgba(0,255,100,0.4)';
           gctx.strokeStyle = 'rgba(0,255,100,0.9)';
           textColor = 'rgba(0,255,100,0.9)';
@@ -212,6 +235,7 @@ function drawGrid() {
         gctx.fillRect(px, py, TILE, TILE);
         gctx.strokeRect(px, py, TILE, TILE);
         const tids = [...new Set(trs.map(t => 'Map' + t.tid))];
+        if (isEntry) tids.unshift('◀');
         gctx.fillStyle = textColor;
         gctx.font = 'bold 9px sans-serif';
         gctx.fillText(tids.join('/'), px + 2, py + 10);
@@ -250,12 +274,14 @@ gridCanvas.addEventListener('click', function(e) {
     const trs = window._currentTransfers && window._currentTransfers[key];
     if (trs && trs.length > 0) {
       if (trs.length === 1) {
+        loadMap(trs[0].tid, { fromMap: Number(mid), fromFx: Number(tx), fromFy: Number(ty), toMap: Number(trs[0].tid), toTx: Number(trs[0].tx), toTy: Number(trs[0].ty) });
+        _skipSelectChange = true;
         document.getElementById('mapSelect').value = String(trs[0].tid);
-        loadMap(trs[0].tid);
       } else {
         showTransferMenu(trs, tr => {
+          loadMap(tr.tid, { fromMap: Number(mid), fromFx: Number(tx), fromFy: Number(ty), toMap: Number(tr.tid), toTx: Number(tr.tx), toTy: Number(tr.ty) });
+          _skipSelectChange = true;
           document.getElementById('mapSelect').value = String(tr.tid);
-          loadMap(tr.tid);
         });
       }
       return;
@@ -314,7 +340,6 @@ function updateUI() {
 
 // ─── 缩放 ─────────────────────────────────────────────────────
 document.getElementById('scrollArea').addEventListener('wheel', function(e) {
-  if (!e.ctrlKey) return;
   e.preventDefault();
   const rect = this.getBoundingClientRect();
   const factor = e.deltaY > 0 ? 1/1.15 : 1.15;
@@ -325,6 +350,37 @@ document.getElementById('scrollArea').addEventListener('wheel', function(e) {
   this.scrollTop = (this.scrollTop + e.clientY - rect.top) * ratio - (e.clientY - rect.top);
   applyZoom();
 }, { passive: false });
+
+// ─── 中键拖拽平移 ──────────────────────────────────────────
+(function() {
+  let panning = false, startX, startY, startLeft, startTop;
+  const area = document.getElementById('scrollArea');
+  area.addEventListener('mousedown', function(e) {
+    if (e.button === 1) {
+      e.preventDefault();
+      panning = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = this.scrollLeft;
+      startTop = this.scrollTop;
+      this.style.cursor = 'grabbing';
+    }
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!panning) return;
+    e.preventDefault();
+    area.scrollLeft = startLeft - (e.clientX - startX);
+    area.scrollTop = startTop - (e.clientY - startY);
+  });
+  document.addEventListener('mouseup', function(e) {
+    if (e.button === 1 && panning) {
+      panning = false;
+      area.style.cursor = '';
+    }
+  });
+  // 防止中键点击弹出自动滚动图标
+  area.addEventListener('auxclick', function(e) { if (e.button === 1) e.preventDefault(); });
+})();
 
 document.addEventListener('keydown', function(e) {
   const area = document.getElementById('scrollArea');
@@ -340,7 +396,7 @@ document.getElementById('clearSel').addEventListener('click', function() { selec
 document.getElementById('showGrid').addEventListener('change', drawGrid);
 document.getElementById('showLabels').addEventListener('change', drawGrid);
 document.getElementById('showTransfers').addEventListener('change', drawGrid);
-document.getElementById('mapSelect').addEventListener('change', function() { if (this.value) loadMap(this.value); });
+document.getElementById('mapSelect').addEventListener('change', function() { if (_skipSelectChange) { _skipSelectChange = false; return; } if (this.value) loadMap(this.value); });
 document.getElementById('saveBtn').addEventListener('click', function() {
   const blob = new Blob([JSON.stringify(selections, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
