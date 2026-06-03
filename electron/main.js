@@ -53,9 +53,10 @@ function scanProjects() {
     if (!fs.statSync(dir).isDirectory()) continue;
     const tilesets = fs.existsSync(path.join(dir, 'tilesets'))
       ? fs.readdirSync(path.join(dir, 'tilesets')).filter(f => f.endsWith('.png')).length : 0;
+    const trans = fs.existsSync(path.join(dir, 'transfers_data.js')) ? true : false;
     const maps = fs.existsSync(path.join(dir, 'maps'))
       ? fs.readdirSync(path.join(dir, 'maps')).filter(f => f.endsWith('.png')).length : 0;
-    projects.push({ name, tilesets, maps });
+    projects.push({ name, tilesets, maps, hasTransfers: trans });
   }
   return projects;
 }
@@ -89,6 +90,15 @@ function openProjectsDir() {
 // ─── IPC ──────────────────────────────────────────────────────
 ipcMain.handle('scan-projects', () => scanProjects());
 
+ipcMain.handle('select-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: '选择游戏目录',
+  });
+  if (result.canceled) return null;
+  return result.filePaths[0].replace(/\\/g, '/');
+});
+
 ipcMain.handle('add-project', async () => {
   await addProject();
   return scanProjects();
@@ -97,6 +107,7 @@ ipcMain.handle('add-project', async () => {
 ipcMain.handle('run-script', (event, scriptName, gameDir) => {
   const scripts = {
     tilesets: { file: 'scripts/extract-tilesets.js', label: '导出 tileset' },
+    transfers: { file: 'scripts/extract-transfers.js', label: '提取传送点' },
     maps: { file: 'scripts/render-maps.js', label: '渲染地图' },
   };
 
@@ -139,6 +150,66 @@ ipcMain.handle('delete-project', (event, name) => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
   return scanProjects();
+});
+
+
+// ─── 查看器 IPC ──────────────────────────────────────────────
+ipcMain.handle('open-viewer', (event, projectName, gameDir, projectDir) => {
+  const viewer = new BrowserWindow({
+    width: 1400, height: 900,
+    title: 'RPGmaper - ' + projectName,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false,
+    },
+  });
+  const absProjectDir = path.resolve(PROJECTS_DIR, projectName);
+  viewer.loadFile(path.join(__dirname, 'renderer', 'viewer.html'), {
+    query: { name: projectName, gameDir: gameDir, projectDir: absProjectDir },
+  });
+  return true;
+});
+
+ipcMain.handle('load-map-infos', (event, gameDir) => {
+  if (!gameDir) return null;
+  const p = path.join(gameDir, 'data', 'MapInfos.json');
+  if (!fs.existsSync(p)) return null;
+  return JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
+});
+
+ipcMain.handle('get-map-dimensions', (event, gameDir, mapId) => {
+  if (!gameDir) return null;
+  const p = path.join(gameDir, 'data', 'Map' + String(mapId).padStart(3, '0') + '.json');
+  if (!fs.existsSync(p)) return null;
+  try {
+    const map = JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
+    return { w: map.width, h: map.height };
+  } catch (e) { return null; }
+});
+
+ipcMain.handle('read-data-file', (event, filePath) => {
+  if (!fs.existsSync(filePath)) return null;
+  return fs.readFileSync(filePath, 'utf8');
+});
+
+ipcMain.handle('get-parallax-maps', (event, gameDir) => {
+  if (!gameDir) return {};
+  const result = {};
+  const infosPath = path.join(gameDir, 'data', 'MapInfos.json');
+  if (!fs.existsSync(infosPath)) return result;
+  const infos = JSON.parse(fs.readFileSync(infosPath, 'utf8').replace(/^﻿/, ''));
+  for (let i = 1; i < infos.length; i++) {
+    if (!infos[i]) continue;
+    const mapPath = path.join(gameDir, 'data', 'Map' + String(i).padStart(3, '0') + '.json');
+    if (!fs.existsSync(mapPath)) continue;
+    try {
+      const map = JSON.parse(fs.readFileSync(mapPath, 'utf8').replace(/^﻿/, ''));
+      if (map.parallaxName && map.parallaxName.length > 0) result[i] = map.parallaxName;
+    } catch (e) {}
+  }
+  return result;
 });
 
 // ─── 启动 ─────────────────────────────────────────────────────

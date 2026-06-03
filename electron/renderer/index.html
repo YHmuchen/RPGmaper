@@ -54,6 +54,8 @@ header .right { margin-left: auto; }
 .btn-ts:hover { background: #6a8a4a; }
 .btn-map { background: #3a6ea5; color: #fff; }
 .btn-map:hover { background: #4a7eb5; }
+.btn-tr { background: #7a5a7a; color: #fff; }
+.btn-tr:hover { background: #8a6a8a; }
 .btn-all { background: #7a5a3a; color: #fff; }
 .btn-all:hover { background: #8a6a4a; }
 .btn-del { background: #5a3a3a; color: #c88; }
@@ -106,10 +108,9 @@ function createProjectCard(p) {
   const card = document.createElement('div');
   card.className = 'project-card';
   card.innerHTML = `
-    // XSS-safe: title set via textContent after render
     <div class="head">
-      <h2 id="projTitle"></h2>
-      <span class="status">tileset ${p.tilesets} 张 · 地图 ${p.maps} 张</span>
+      <h2 class="proj-title" style="cursor:pointer;color:#7a7;">📁 ${p.name}</h2>
+      <span class="status">tileset ${p.tilesets} 张 · 地图 ${p.maps} 张 ${p.hasTransfers ? "📌" : ""}</span>
     </div>
     <div class="stats">
       <span>Tileset: <strong id="tsCount_${p.name}">${p.tilesets}</strong></span>
@@ -118,13 +119,16 @@ function createProjectCard(p) {
     <div class="actions">
       <button class="btn-ts" data-name="${p.name}">导出 tileset</button>
       <button class="btn-map" data-name="${p.name}">渲染地图</button>
+      <button class="btn-tr" data-name="${p.name}">提取传送点</button>
       <button class="btn-all" data-name="${p.name}">▶ 全流程</button>
       <button class="btn-del" data-name="${p.name}" style="margin-left:auto;">删除</button>
     </div>
   `;
 
   card.querySelector('.btn-ts').addEventListener('click', () => runOne(p.name, 'tilesets'));
+  card.querySelector(".proj-title").addEventListener("click", () => openViewer(p));
   card.querySelector('.btn-map').addEventListener('click', () => runOne(p.name, 'maps'));
+  card.querySelector('.btn-tr').addEventListener('click', () => runOne(p.name, 'transfers'));
   card.querySelector('.btn-all').addEventListener('click', () => runAll(p.name));
   card.querySelector('.btn-del').addEventListener('click', async () => {
     if (!confirm(`删除项目「${p.name}」？所有数据将被移除。`)) return;
@@ -140,6 +144,20 @@ function createProjectCard(p) {
   return card;
 }
 
+async function openViewer(p) {
+  var stored = JSON.parse(localStorage.getItem("gameDirs") || "{}");
+  var gameDir = stored[p.name];
+  if (!gameDir) {
+    log("未找到游戏目录，请选择", "err");
+    gameDir = await electronAPI.selectDirectory();
+    if (!gameDir) { log("取消选择", "err"); return; }
+    stored[p.name] = gameDir;
+    localStorage.setItem("gameDirs", JSON.stringify(stored));
+  }
+  await electronAPI.openViewer(p.name, gameDir);
+  log("✔ 已打开查看器: " + p.name, "done");
+}
+
 async function runOne(projectName, script) {
   const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
   const gameDir = stored[projectName];
@@ -148,7 +166,7 @@ async function runOne(projectName, script) {
     return;
   }
 
-  const label = script === 'tilesets' ? '导出 tileset' : '渲染地图';
+  const label = script === 'tilesets' ? '导出 tileset' : (script === 'transfers' ? '提取传送点' : '渲染地图');
   log(`▶ ${label}...`, 'info');
   document.getElementById('statusBar').textContent = `正在${label}...`;
 
