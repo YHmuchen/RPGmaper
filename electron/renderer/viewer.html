@@ -277,11 +277,13 @@ gridCanvas.addEventListener('click', function(e) {
         loadMap(trs[0].tid, { fromMap: Number(mid), fromFx: Number(tx), fromFy: Number(ty), toMap: Number(trs[0].tid), toTx: Number(trs[0].tx), toTy: Number(trs[0].ty) });
         _skipSelectChange = true;
         document.getElementById('mapSelect').value = String(trs[0].tid);
+        setTimeout(function() { _skipSelectChange = false; }, 0);
       } else {
         showTransferMenu(trs, tr => {
           loadMap(tr.tid, { fromMap: Number(mid), fromFx: Number(tx), fromFy: Number(ty), toMap: Number(tr.tid), toTx: Number(tr.tx), toTy: Number(tr.ty) });
           _skipSelectChange = true;
           document.getElementById('mapSelect').value = String(tr.tid);
+          setTimeout(function() { _skipSelectChange = false; }, 0);
         });
       }
       return;
@@ -355,6 +357,7 @@ document.getElementById('scrollArea').addEventListener('wheel', function(e) {
 (function() {
   let panning = false, startX, startY, startLeft, startTop;
   const area = document.getElementById('scrollArea');
+  function stopPan() { panning = false; area.style.cursor = ''; }
   area.addEventListener('mousedown', function(e) {
     if (e.button === 1) {
       e.preventDefault();
@@ -373,13 +376,12 @@ document.getElementById('scrollArea').addEventListener('wheel', function(e) {
     area.scrollTop = startTop - (e.clientY - startY);
   });
   document.addEventListener('mouseup', function(e) {
-    if (e.button === 1 && panning) {
-      panning = false;
-      area.style.cursor = '';
-    }
+    if (e.button === 1 && panning) stopPan();
   });
   // 防止中键点击弹出自动滚动图标
   area.addEventListener('auxclick', function(e) { if (e.button === 1) e.preventDefault(); });
+  // 防止窗口失焦导致 panning 卡住
+  window.addEventListener('blur', stopPan);
 })();
 
 document.addEventListener('keydown', function(e) {

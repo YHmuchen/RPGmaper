@@ -110,7 +110,14 @@ function main() {
     }
 
     if (data) {
-      const outPath = path.join(outDir, name + '.png');
+      const outPath = path.resolve(outDir, name + '.png');
+      // 防止路径穿越：确保输出在 outDir 内
+      const resolvedOut = path.resolve(outDir) + path.sep;
+      if (!outPath.startsWith(resolvedOut)) {
+        process.stdout.write('✗ 路径越界\n');
+        fail++;
+        continue;
+      }
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, data);
       const size = (fs.statSync(outPath).size / 1024).toFixed(0);
