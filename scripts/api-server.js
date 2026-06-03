@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = parseInt(process.argv[2]) || 3456;
+const SERVER_NAME = 'RPGmaper-API/1.0';
 const TILE = 48;
 const PROJECTS_DIR = path.resolve(__dirname, '..', 'maps', 'projects');
 
