@@ -17,13 +17,14 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = parseInt(process.argv[2]) || 3456;
+const SERVER_NAME = 'RPGmaper-API/1.0';
 const TILE = 48;
 const PROJECTS_DIR = path.resolve(__dirname, '..', 'maps', 'projects');
 
 // ─── 工具 ─────────────────────────────────────────────────────
 function readJSON(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8').replace(/^﻿/, '');
-  const m = raw.match(/var TRANSFERS_ALL = ([\s\S]*?);/);
+  const m = raw.match(/var TRANSFERS_ALL = (\{[\s\S]*?\});\s*$/);
   if (!m) return null;
   return JSON.parse(m[1]);
 }
@@ -35,15 +36,19 @@ function json(res, code, data) {
 
 // 从 PNG 文件头读取图片尺寸（不加载全图）
 function getPngSize(filePath) {
+  let fd;
   try {
+    fd = fs.openSync(filePath, 'r');
     const buf = Buffer.alloc(24);
-    const fd = fs.openSync(filePath, 'r');
     fs.readSync(fd, buf, 0, 24, 0);
-    fs.closeSync(fd);
     if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
       return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
     }
-  } catch (e) {}
+  } catch (e) {
+    return null;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
   return null;
 }
 
@@ -149,7 +154,7 @@ function computeLayout(projectName, mapId) {
     let ntx, nty;
     if (edir === 'R') {
       ntx = ci.tw + gap;
-      nty = Math.max(0, Math.min(ci.th * 0.5, ci.th + ni.th + gap*2 - ni.th));
+      nty = ci.th * 0.5 - ni.th / 2;
     } else if (edir === 'L') {
       ntx = -ni.tw - gap; nty = ci.th * 0.5 - ni.th / 2;
     } else if (edir === 'B') {
@@ -290,7 +295,10 @@ const server = http.createServer((req, res) => {
     const isGraph = parts[0] === 'api' && parts[1] === 'graph';
 
     if (isLayout || isGraph) {
-      const projectName = decodeURIComponent(parts[2]);
+      if (!parts[2]) return json(res, 400, { ok: false, error: '缺少项目名称' });
+      const rawName = decodeURIComponent(parts[2]);
+      const projectName = path.basename(rawName);
+      if (projectName !== rawName) return json(res, 400, { ok: false, error: '非法的项目名称' });
       const filePath = path.join(PROJECTS_DIR, projectName, 'transfers_data.js');
       if (!fs.existsSync(filePath)) {
         return json(res, 404, { ok: false, error: '未找到项目或传送数据' });
@@ -336,7 +344,7 @@ const server = http.createServer((req, res) => {
 
     json(res, 404, { ok: false, error: '未找到接口' });
   } catch (e) {
-    json(res, 500, { ok: false, error: e.message });
+    json(res, 500, { ok: false, error: '内部错误' });
   }
 });
 
