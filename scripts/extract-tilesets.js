@@ -9,7 +9,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 // ─── 解密 ──────────────────────────────────────────────────────
 function loadEncryptionKey(gameDir) {
@@ -34,10 +33,13 @@ function decryptRPGMVFile(filePath, keyBytes) {
   const isRPGMV = header.every((b, i) => b === expected[i]);
 
   if (isRPGMV) {
+    if (!keyBytes || keyBytes.length === 0) return null;
     const body = Buffer.from(buf.slice(16));
     for (let i = 0; i < 16 && i < body.length; i++) {
       body[i] ^= keyBytes[i % keyBytes.length];
     }
+        const pngSig = [0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A];
+    if (!pngSig.every((b,i) => body[i] === b)) return null;
     return body;
   }
 

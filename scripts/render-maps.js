@@ -464,6 +464,11 @@ async function renderParallaxMap(map, mapId, tilesets) {
   // 检查是否有 tile（有的话需要复合 tiles + parallax）
   const hasTiles = !hasNoTiles(map);
   if (hasTiles) {
+    const ts = tilesets[map.tilesetId];
+    if (!ts || !ts.tilesetNames) {
+      console.log("  tileset data missing (id=" + map.tilesetId + ")");
+      return false;
+    }
     // 有 tile 的地图 — 先渲染 parallax 背景再叠加 tiles
     const meta = await sharp(data).metadata();
     const outW = map.width * TILE, outH = map.height * TILE;

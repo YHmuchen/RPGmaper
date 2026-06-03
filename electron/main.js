@@ -107,7 +107,8 @@ ipcMain.handle('run-script', (event, scriptName, gameDir) => {
   if (!fs.existsSync(scriptPath)) return { ok: false, error: '找不到' + s.file };
 
   return new Promise(resolve => {
-    const proc = require('child_process').spawn("node", [scriptPath, gameDir], {
+    let timer = setTimeout(() => { proc.kill(); resolve({ ok: false, error: "脚本执行超时" }); }, 600000);
+    const proc = spawn("node", [scriptPath, gameDir], {
       cwd: PROJECT_ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -121,16 +122,19 @@ ipcMain.handle('run-script', (event, scriptName, gameDir) => {
     proc.stderr.on('data', d => { output += d.toString(); });
 
     proc.on('close', code => {
+      clearTimeout(timer);
       resolve({ ok: code === 0, error: code !== 0 ? output : null, output });
     });
     proc.on('error', err => {
+      clearTimeout(timer);
       resolve({ ok: false, error: err.message });
     });
   });
-});;
+});
 
 ipcMain.handle('delete-project', (event, name) => {
-  const dir = path.join(PROJECTS_DIR, name);
+  const dir = path.resolve(PROJECTS_DIR, name);
+  if (!dir.startsWith(path.resolve(PROJECTS_DIR))) return scanProjects();
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }

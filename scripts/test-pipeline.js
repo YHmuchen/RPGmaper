@@ -156,6 +156,11 @@ async function main() {
 
     // 随机抽最多 5 张
     const sampleSize = Math.min(5, mapIds.length);
+      const shuffled = [...mapIds];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor((i * 7 + 13) % (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
     const sampled = [];
     const seed = mapIds.length;
     for (let i = 0; i < sampleSize; i++) {

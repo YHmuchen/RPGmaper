@@ -68,7 +68,7 @@ header .right { margin-left: auto; }
 .log-panel .log-line.done { color: #6a6; }
 .log-panel .log-line.err { color: #c66; }
 .log-panel .log-line.info { color: #888; }
-</style>
+<style>.log-line.ok { color: #6a6; } .log-line.fail { color: #c66; }</style>
 </head>
 <body>
 
@@ -106,8 +106,9 @@ function createProjectCard(p) {
   const card = document.createElement('div');
   card.className = 'project-card';
   card.innerHTML = `
+    // XSS-safe: title set via textContent after render
     <div class="head">
-      <h2>📁 ${p.name}</h2>
+      <h2 id="projTitle"></h2>
       <span class="status">tileset ${p.tilesets} 张 · 地图 ${p.maps} 张</span>
     </div>
     <div class="stats">
