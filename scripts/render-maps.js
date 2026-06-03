@@ -37,7 +37,13 @@ const GAME_DIR = (() => {
   return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
 })();
 
-const TS_DIR   = 'C:/Users/Muchen/maps/tilesets/';
+// tileset 图片目录：环境变量 > GAME_DIR 同级 > 默认
+const TS_DIR = (() => {
+  if (process.env.TS_DIR) return process.env.TS_DIR.replace(/\\/g, '/') + '/';
+  const guess = path.resolve(GAME_DIR, '..', 'tilesets') + '/';
+  if (fs.existsSync(guess)) return guess;
+  return 'C:/Users/Muchen/maps/tilesets/';
+})();
 const OUT_DIR  = path.resolve(__dirname, '..', 'docs', 'maps');
 const PARALLAX_DIR = path.resolve(__dirname, '..', 'docs', 'parallax');
 
@@ -479,7 +485,7 @@ async function renderParallaxMap(map, mapId, tilesets) {
     const tsImgs = {};
     for (const n of needed) {
       const img = await loadTS(n);
-      if (!img) { console.log('  tileset 缺失: ' + n); continue; }
+      if (!img) { console.log('  tileset 缺失: ' + n); return false; }
       tsImgs[n] = img;
     }
 
@@ -496,7 +502,25 @@ async function renderParallaxMap(map, mapId, tilesets) {
       }
     }
 
+    // 阴影（读取 layer 4）
+    const shadowBuf = Buffer.alloc(outW * outH * 4, 0);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const shadowBits = readMapData(map.data, w, h, 4, x, y);
+        if (shadowBits & 0x0f) {
+          const dx = x * TILE, dy = y * TILE;
+          for (let i = 0; i < 4; i++) {
+            if (shadowBits & (1 << i)) {
+              blendShadow(shadowBuf, outW, dx + (i % 2) * HALF, dy + Math.floor(i / 2) * HALF, HALF, HALF);
+            }
+          }
+        }
+      }
+    }
+
     for (const c of lowerCmds) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, bgBuf, outW, c.dx, c.dy, c.w, c.h);
+    // 阴影合成到 bgBuf（在 lower 之上、upper 之下）
+    compositeLayer(shadowBuf, bgBuf, outW * outH * 4);
     for (const c of upperCmds) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, upperBuf, outW, c.dx, c.dy, c.w, c.h);
     compositeLayer(upperBuf, bgBuf, outW * outH * 4);
 
