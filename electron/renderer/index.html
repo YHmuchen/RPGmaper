@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>RPGmaper</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a1a; color: #ccc; font: 14px/1.4 sans-serif;
+  height: 100vh; display: flex; flex-direction: column;
+}
+
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; background: #222; border-bottom: 1px solid #333;
+}
+header h1 { font-size: 18px; font-weight: normal; color: #7a7; }
+header button {
+  padding: 6px 16px; border: none; border-radius: 4px;
+  cursor: pointer; font-size: 13px;
+}
+header button.primary { background: #3a6ea5; color: #fff; }
+header button.primary:hover { background: #4a7eb5; }
+header .right { margin-left: auto; }
+
+.project-list { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.project-empty { text-align: center; padding: 60px 20px; color: #555; }
+.project-empty .big { font-size: 48px; margin-bottom: 12px; }
+.project-empty p { margin: 4px 0; }
+
+.project-card {
+  background: #222; border: 1px solid #333; border-radius: 6px;
+  padding: 16px; margin-bottom: 12px;
+}
+.project-card .head {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px;
+}
+.project-card .head h2 { font-size: 15px; font-weight: normal; flex: 1; }
+.project-card .head .status { font-size: 12px; color: #666; }
+.project-card .stats {
+  display: flex; gap: 20px; margin-bottom: 10px; font-size: 13px;
+}
+.project-card .stats span { color: #888; }
+.project-card .stats strong { color: #ccc; }
+.project-card .actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.project-card .actions button {
+  padding: 4px 12px; border: none; border-radius: 3px;
+  cursor: pointer; font-size: 12px;
+}
+.btn-ts { background: #5a7a3a; color: #fff; }
+.btn-ts:hover { background: #6a8a4a; }
+.btn-map { background: #3a6ea5; color: #fff; }
+.btn-map:hover { background: #4a7eb5; }
+.btn-all { background: #7a5a3a; color: #fff; }
+.btn-all:hover { background: #8a6a4a; }
+.btn-del { background: #5a3a3a; color: #c88; }
+.btn-del:hover { background: #6a4a4a; }
+
+.log-panel {
+  border-top: 1px solid #333; background: #111;
+  padding: 10px 16px; max-height: 160px; overflow-y: auto;
+  font: 12px/1.5 monospace; color: #888;
+}
+.log-panel .log-line { white-space: pre-wrap; word-break: break-all; }
+.log-panel .log-line.done { color: #6a6; }
+.log-panel .log-line.err { color: #c66; }
+.log-panel .log-line.info { color: #888; }
+<style>.log-line.ok { color: #6a6; } .log-line.fail { color: #c66; }</style>
+</head>
+<body>
+
+<header>
+  <h1>🗺️ RPGmaper</h1>
+  <button class="primary" id="addBtn">＋ 添加游戏</button>
+  <span class="right" id="statusBar" style="color:#666;font-size:12px;">就绪</span>
+</header>
+
+<div class="project-list" id="projectList">
+  <div class="project-empty" id="emptyHint">
+    <div class="big">🗺️</div>
+    <p>还没有添加任何游戏</p>
+    <p style="font-size:12px;">点击上方「添加游戏」按钮选择游戏目录</p>
+  </div>
+</div>
+
+<div class="log-panel" id="logPanel">
+  <div class="log-line info">就绪</div>
+</div>
+
+<script>
+// electronAPI 由 preload 通过 contextBridge 注入
+
+function log(text, type) {
+  const panel = document.getElementById('logPanel');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + (type || '');
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + text;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function createProjectCard(p) {
+  const card = document.createElement('div');
+  card.className = 'project-card';
+  card.innerHTML = `
+    // XSS-safe: title set via textContent after render
+    <div class="head">
+      <h2 id="projTitle"></h2>
+      <span class="status">tileset ${p.tilesets} 张 · 地图 ${p.maps} 张</span>
+    </div>
+    <div class="stats">
+      <span>Tileset: <strong id="tsCount_${p.name}">${p.tilesets}</strong></span>
+      <span>地图: <strong id="mapCount_${p.name}">${p.maps}</strong></span>
+    </div>
+    <div class="actions">
+      <button class="btn-ts" data-name="${p.name}">导出 tileset</button>
+      <button class="btn-map" data-name="${p.name}">渲染地图</button>
+      <button class="btn-all" data-name="${p.name}">▶ 全流程</button>
+      <button class="btn-del" data-name="${p.name}" style="margin-left:auto;">删除</button>
+    </div>
+  `;
+
+  card.querySelector('.btn-ts').addEventListener('click', () => runOne(p.name, 'tilesets'));
+  card.querySelector('.btn-map').addEventListener('click', () => runOne(p.name, 'maps'));
+  card.querySelector('.btn-all').addEventListener('click', () => runAll(p.name));
+  card.querySelector('.btn-del').addEventListener('click', async () => {
+    if (!confirm(`删除项目「${p.name}」？所有数据将被移除。`)) return;
+    try {
+      await electronAPI.deleteProject(p.name);
+      refreshList();
+      log(`已删除: ${p.name}`, 'done');
+    } catch (e) {
+      log('删除失败: ' + e.message, 'err');
+    }
+  });
+
+  return card;
+}
+
+async function runOne(projectName, script) {
+  const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
+  const gameDir = stored[projectName];
+  if (!gameDir) {
+    log(`项目「${projectName}」未关联游戏目录`, 'err');
+    return;
+  }
+
+  const label = script === 'tilesets' ? '导出 tileset' : '渲染地图';
+  log(`▶ ${label}...`, 'info');
+  document.getElementById('statusBar').textContent = `正在${label}...`;
+
+  try {
+    await electronAPI.runScript(script, gameDir);
+    refreshList();
+    document.getElementById('statusBar').textContent = `${label} 完成`;
+    log(`✔ ${label} 完成`, 'done');
+  } catch (e) {
+    log(`✗ ${label} 失败: ${e.message}`, 'err');
+    document.getElementById('statusBar').textContent = `${label} 失败`;
+  }
+}
+
+async function runAll(projectName) {
+  const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
+  const gameDir = stored[projectName];
+  if (!gameDir) {
+    log(`项目「${projectName}」未关联游戏目录`, 'err');
+    return;
+  }
+
+  log(`▶ 全流程开始...`, 'info');
+  document.getElementById('statusBar').textContent = '全流程执行中...';
+
+  log(`▶ 开始 tileset 导出...`, 'info');
+  const r1 = await electronAPI.runScript('tilesets', gameDir);
+  log(`✔ tileset 导出完成 (ok=${r1.ok})`, r1.ok ? 'done' : 'err');
+  if (r1.ok) {
+    log(`▶ 开始渲染地图...`, 'info');
+    const r2 = await electronAPI.runScript('maps', gameDir);
+    log(`✔ 地图渲染完成 (ok=${r2.ok})`, r2.ok ? 'done' : 'err');
+  } else {
+    log(`✗ tileset 导出失败，跳过渲染`, 'err');
+  }
+  refreshList();
+  document.getElementById('statusBar').textContent = '全流程完成';
+  log(`✅ 全流程完成`, 'done');
+}
+
+async function refreshList() {
+  try {
+    const projects = await electronAPI.scanProjects();
+    const list = document.getElementById('projectList');
+
+    if (projects.length === 0) {
+      list.innerHTML = '<div class="project-empty"><div class="big">🗺️</div><p>还没有添加任何游戏</p><p style="font-size:12px;">点击上方「添加游戏」按钮选择游戏目录</p></div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    projects.forEach(p => list.appendChild(createProjectCard(p)));
+    log(`已刷新列表: ${projects.length} 个项目`, 'info');
+  } catch (e) {
+    log('刷新失败: ' + e.message, 'err');
+  }
+}
+
+// ─── 添加项目 ─────────────────────────────────────────────────
+document.getElementById('addBtn').addEventListener('click', async () => {
+  try {
+    log('打开目录选择器...', 'info');
+    const projects = await electronAPI.addProject();
+    refreshList();
+  } catch (e) {
+    log('添加失败: ' + e.message, 'err');
+  }
+});
+
+electronAPI.onProjectAdded(data => {
+  const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
+  stored[data.name] = data.gameDir;
+  localStorage.setItem('gameDirs', JSON.stringify(stored));
+  log(`✔ 已添加项目: ${data.name}`, 'done');
+  refreshList();
+});
+
+// ─── 脚本事件 ─────────────────────────────────────────────────
+electronAPI.onScriptOutput(data => {
+  if (data.text) log(data.text, 'info');
+});
+
+electronAPI.onScriptDone(data => {
+  if (!data.ok && data.error) {
+    log(`✗ ${data.error.substring(0, 200)}`, 'err');
+  }
+});
+
+// ─── 初始 ─────────────────────────────────────────────────────
+log('应用已启动', 'info');
+refreshList();
+</script>
+</body>
+</html>

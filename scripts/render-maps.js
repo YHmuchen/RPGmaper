@@ -12,6 +12,11 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
+// 读取 JSON 文件，自动去除 UTF-8 BOM
+function readJSON(fp) {
+  return JSON.parse(fs.readFileSync(fp, 'utf8').replace(/^﻿/, ''));
+}
+
 // ─── 常量 ───────────────────────────────────────────────────────
 const TILE = 48;
 const HALF = 24;
@@ -37,22 +42,22 @@ const GAME_DIR = (() => {
   return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
 })();
 
-// tileset 图片目录：环境变量 > GAME_DIR 同级 > 默认
-const TS_DIR = (() => {
-  if (process.env.TS_DIR) return process.env.TS_DIR.replace(/\\/g, '/') + '/';
-  const guess = path.resolve(GAME_DIR, '..', 'tilesets') + '/';
-  if (fs.existsSync(guess)) return guess;
-  return 'C:/Users/Muchen/maps/tilesets/';
+// 项目目录：按项目名分开放，避免混杂
+const PROJECT_DIR = (() => {
+  const base = path.resolve(__dirname, '..', 'maps', 'projects');
+  const name = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+  return path.join(base, name);
 })();
-const OUT_DIR  = path.resolve(__dirname, '..', 'docs', 'maps');
-const PARALLAX_DIR = path.resolve(__dirname, '..', 'docs', 'parallax');
+const TS_DIR        = PROJECT_DIR + '/tilesets/';
+const OUT_DIR       = PROJECT_DIR + '/maps/';
+const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';
 
 const PARALLAX_IMG_DIR = GAME_DIR + '/img/parallaxes/';
 
 // 加密密钥（来自 System.json）
 const ENC_KEY_BYTES = (() => {
   try {
-    const sys = JSON.parse(fs.readFileSync(GAME_DIR + '/data/System.json', 'utf8'));
+    const sys = readJSON(GAME_DIR + '/data/System.json');
     const key = sys.encryptionKey || '';
     return key.length >= 32 ? key.match(/.{2}/g).map(h => parseInt(h, 16)) : [];
   } catch (e) {
@@ -329,7 +334,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     return false;
   }
 
-  const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+  const map = readJSON(mapPath);
   if (!map || !map.data) {
     console.log(`[${mapId}] ✗ 无数据`);
     return false;
@@ -459,6 +464,11 @@ async function renderParallaxMap(map, mapId, tilesets) {
   // 检查是否有 tile（有的话需要复合 tiles + parallax）
   const hasTiles = !hasNoTiles(map);
   if (hasTiles) {
+    const ts = tilesets[map.tilesetId];
+    if (!ts || !ts.tilesetNames) {
+      console.log("  tileset data missing (id=" + map.tilesetId + ")");
+      return false;
+    }
     // 有 tile 的地图 — 先渲染 parallax 背景再叠加 tiles
     const meta = await sharp(data).metadata();
     const outW = map.width * TILE, outH = map.height * TILE;
@@ -476,7 +486,6 @@ async function renderParallaxMap(map, mapId, tilesets) {
 
     // 在上面渲染 tiles（用原有逻辑）
     const w = map.width, h = map.height;
-    const ts = tilesets[map.tilesetId];
     const tsNames = ts.tilesetNames;
     const flags = ts.flags || {};
 
@@ -485,7 +494,7 @@ async function renderParallaxMap(map, mapId, tilesets) {
     const tsImgs = {};
     for (const n of needed) {
       const img = await loadTS(n);
-      if (!img) { console.log('  tileset 缺失: ' + n); return false; }
+      if (!img) { console.log('  tileset 缺失: ' + n); continue; }
       tsImgs[n] = img;
     }
 
@@ -502,25 +511,7 @@ async function renderParallaxMap(map, mapId, tilesets) {
       }
     }
 
-    // 阴影（读取 layer 4）
-    const shadowBuf = Buffer.alloc(outW * outH * 4, 0);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const shadowBits = readMapData(map.data, w, h, 4, x, y);
-        if (shadowBits & 0x0f) {
-          const dx = x * TILE, dy = y * TILE;
-          for (let i = 0; i < 4; i++) {
-            if (shadowBits & (1 << i)) {
-              blendShadow(shadowBuf, outW, dx + (i % 2) * HALF, dy + Math.floor(i / 2) * HALF, HALF, HALF);
-            }
-          }
-        }
-      }
-    }
-
     for (const c of lowerCmds) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, bgBuf, outW, c.dx, c.dy, c.w, c.h);
-    // 阴影合成到 bgBuf（在 lower 之上、upper 之下）
-    compositeLayer(shadowBuf, bgBuf, outW * outH * 4);
     for (const c of upperCmds) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, upperBuf, outW, c.dx, c.dy, c.w, c.h);
     compositeLayer(upperBuf, bgBuf, outW * outH * 4);
 
@@ -553,7 +544,7 @@ async function main() {
     console.error('✗ 找不到 Tilesets.json');
     process.exit(1);
   }
-  const allTilesets = JSON.parse(fs.readFileSync(tilesetsPath, 'utf8'));
+  const allTilesets = readJSON(tilesetsPath);
   // 转换为以 id 为 key 的 map
   const tilesets = {};
   for (const ts of allTilesets) {
@@ -566,13 +557,13 @@ async function main() {
     console.error('✗ 找不到 MapInfos.json');
     process.exit(1);
   }
-  const mapInfos = JSON.parse(fs.readFileSync(mapInfosPath, 'utf8'));
+  const mapInfos = readJSON(mapInfosPath);
   const allIds = [];
   for (let i = 1; i < mapInfos.length; i++) {
     if (mapInfos[i]) allIds.push(i);
   }
 
-  const ids = specificIds || allIds;
+  const ids = (specificIds && specificIds.length > 0) ? specificIds : allIds;
   console.log(`共 ${ids.length} 张地图\n`);
 
   let ok = 0, fail = 0;
