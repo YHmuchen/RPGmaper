@@ -173,20 +173,19 @@ async function runAll(projectName) {
   log(`▶ 全流程开始...`, 'info');
   document.getElementById('statusBar').textContent = '全流程执行中...';
 
-  try {
-    await electronAPI.runScript('tilesets', gameDir);
-    log(`✔ tileset 导出完成`, 'done');
-
-    await electronAPI.runScript('maps', gameDir);
-    log(`✔ 地图渲染完成`, 'done');
-
-    refreshList();
-    document.getElementById('statusBar').textContent = '全流程完成';
-    log(`✅ 全流程完成`, 'done');
-  } catch (e) {
-    log(`✗ 全流程失败: ${e.message}`, 'err');
-    document.getElementById('statusBar').textContent = '全流程失败';
+  log(`▶ 开始 tileset 导出...`, 'info');
+  const r1 = await electronAPI.runScript('tilesets', gameDir);
+  log(`✔ tileset 导出完成 (ok=${r1.ok})`, r1.ok ? 'done' : 'err');
+  if (r1.ok) {
+    log(`▶ 开始渲染地图...`, 'info');
+    const r2 = await electronAPI.runScript('maps', gameDir);
+    log(`✔ 地图渲染完成 (ok=${r2.ok})`, r2.ok ? 'done' : 'err');
+  } else {
+    log(`✗ tileset 导出失败，跳过渲染`, 'err');
   }
+  refreshList();
+  document.getElementById('statusBar').textContent = '全流程完成';
+  log(`✅ 全流程完成`, 'done');
 }
 
 async function refreshList() {
