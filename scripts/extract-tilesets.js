@@ -1,119 +1,125 @@
-const CDP = require('chrome-remote-interface');
+/**
+ * extract-tilesets.js — 离线导出 tileset 图片
+ *
+ * 直接从游戏目录的 img/tilesets/ 读取（加密或未加密）tileset PNG，
+ * 输出到指定项目的 tileset 目录。
+ *
+ * 用法: node scripts/extract-tilesets.js <游戏目录> [输出目录]
+ */
+
 const fs = require('fs');
 const path = require('path');
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-const OUT = path.resolve(__dirname, '..', 'maps', 'tilesets') + '/';
+const crypto = require('crypto');
 
-async function main() {
-  let client;
+// ─── 解密 ──────────────────────────────────────────────────────
+function loadEncryptionKey(gameDir) {
   try {
-    client = await CDP({port: 9222, host: '127.0.0.1'});
-  } catch(e) {
-    console.error('无法连接到游戏。请确保：\n1. 游戏已启动\n2. 启动参数包含 --remote-debugging-port=9222\n');
+    const sys = JSON.parse(
+      fs.readFileSync(gameDir + '/data/System.json', 'utf8').replace(/^﻿/, '')
+    );
+    const key = sys.encryptionKey || '';
+    return key.length >= 32 ? key.match(/.{2}/g).map(h => parseInt(h, 16)) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function decryptRPGMVFile(filePath, keyBytes) {
+  if (!fs.existsSync(filePath)) return null;
+  const buf = fs.readFileSync(filePath);
+
+  // RPGMV 加密格式：16 字节头 + XOR 加密数据
+  const header = Array.from(new Uint8Array(buf.slice(0, 16)));
+  const expected = [0x52, 0x50, 0x47, 0x4d, 0x56, 0, 0, 0, 0, 0x03, 0x01, 0, 0, 0, 0, 0];
+  const isRPGMV = header.every((b, i) => b === expected[i]);
+
+  if (isRPGMV) {
+    const body = Buffer.from(buf.slice(16));
+    for (let i = 0; i < 16 && i < body.length; i++) {
+      body[i] ^= keyBytes[i % keyBytes.length];
+    }
+    return body;
+  }
+
+  // 可能是未加密的 PNG
+  if (buf[0] === 0x89 && buf[1] === 0x50) {
+    return buf;
+  }
+
+  return null;
+}
+
+// ─── 主流程 ────────────────────────────────────────────────────
+function main() {
+  const args = process.argv.slice(2);
+  const gameDir = args[0] || (process.env.GAME_DIR || '').replace(/\\/g, '/');
+  if (!gameDir || !fs.existsSync(gameDir + '/data/System.json')) {
+    console.error('用法: node scripts/extract-tilesets.js <游戏目录> [输出目录]');
     process.exit(1);
   }
-  const {Runtime} = client;
-  await Runtime.enable();
 
-  fs.mkdirSync(OUT, {recursive: true});
+  // 确定项目名（从游戏目录名）
+  const projectName = path.basename(gameDir).replace(/[\s_]+$/, '');
+  const outDir = args[1] || path.resolve(__dirname, '..', 'maps', 'projects', projectName, 'tilesets');
 
-  // 先检查 Bitmap 存储格式
-  var r0 = await Runtime.evaluate({
-    expression: `
-      (function(){
-        var ts = $dataTilesets[1];
-        if(!ts) return 'no_ts';
-        var name = ts.tilesetNames[0];
-        if(!name) return 'no_name';
-        var bmp = ImageManager.loadTileset(name);
-        var info = {};
-        info.hasCanvas = !!bmp._canvas;
-        info.hasImage = !!bmp._image;
-        info.hasBaseTexture = !!bmp._baseTexture;
-        info.type = typeof bmp._image;
-        info.width = bmp.width;
-        info.height = bmp.height;
-        if(bmp._image) info.imageReady = bmp._image.complete;
-        if(bmp._image) info.imageSrc = (bmp._image.src || '').substring(0, 100);
-        return JSON.stringify(info);
-      })()
-    `,
-    returnByValue: false
-  });
-  console.log('Bitmap格式:', r0.result.value);
+  // 加载 tilesets 索引
+  const allTilesets = JSON.parse(
+    fs.readFileSync(gameDir + '/data/Tilesets.json', 'utf8').replace(/^﻿/, '')
+  );
 
-  // 批量导出 tileset 图片
-  var r1 = await Runtime.evaluate({
-    expression: `
-      (function(){
-        var out = {};
-        for(var id in $dataTilesets) {
-          var ts = $dataTilesets[id];
-          if(!ts || !ts.tilesetNames) continue;
-          out[id] = {name: ts.name, names: ts.tilesetNames};
-        }
-        return JSON.stringify(out);
-      })()
-    `,
-    returnByValue: false
-  });
-  var tilesets = JSON.parse(r1.result.value);
-
-  var allNames = {};
-  for(var id in tilesets) {
-    tilesets[id].names.forEach(function(n){
-      if(n && n.length > 0) allNames[n] = true;
-    });
-  }
-  var nameList = Object.keys(allNames);
-  console.log('共 ' + nameList.length + ' 张 tileset 图片');
-
-  for(var i=0; i<nameList.length; i++) {
-    var name = nameList[i];
-    process.stdout.write('[' + (i+1) + '/' + nameList.length + '] ' + name + ' ');
-
-    var r2 = await Runtime.evaluate({
-      expression: `
-        (async function(){
-          try {
-            var bmp = ImageManager.loadTileset('${name.replace(/'/g, "\'")}');
-            if(!bmp.isReady()) {
-              await new Promise(function(r){bmp.addLoadListener(function(){r();});});
-            }
-            // 用 Canvas2D 画出 bitmap
-            var c = document.createElement('canvas');
-            c.width = bmp.width;
-            c.height = bmp.height;
-            var ctx = c.getContext('2d');
-            if(bmp._canvas) {
-              ctx.drawImage(bmp._canvas, 0, 0);
-            } else if(bmp._image) {
-              ctx.drawImage(bmp._image, 0, 0);
-            } else {
-              return 'no_source';
-            }
-            return c.toDataURL('image/png').split(',')[1];
-          } catch(e) {
-            return 'err:' + e.message;
-          }
-        })()
-      `,
-      awaitPromise: true,
-      returnByValue: false
-    });
-
-    var v = r2.result.value;
-    if (v && !v.startsWith('err:') && v !== 'no_source') {
-      fs.writeFileSync(OUT + name + '.png', v, 'base64');
-      var sz = fs.statSync(OUT + name + '.png').size;
-      process.stdout.write((sz/1024).toFixed(0) + 'KB ✓\n');
-    } else {
-      process.stdout.write(v + '\n');
+  // 收集所有 tilesetNames
+  const neededNames = new Set();
+  for (const ts of allTilesets) {
+    if (!ts || !ts.tilesetNames) continue;
+    for (const name of ts.tilesetNames) {
+      if (name && name.length > 0) neededNames.add(name);
     }
   }
 
-  console.log('\n完成');
-  client.close();
+  // 加密密钥
+  const keyBytes = loadEncryptionKey(gameDir);
+  const tilesetDir = gameDir + '/img/tilesets/';
+
+  fs.mkdirSync(outDir, { recursive: true });
+
+  let ok = 0, fail = 0;
+  const names = Array.from(neededNames).sort();
+
+  console.log(`项目: ${projectName}`);
+  console.log(`游戏: ${gameDir}`);
+  console.log(`输出: ${outDir}`);
+  console.log(`需要导出 ${names.length} 张 tileset 图片\n`);
+
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    process.stdout.write(`[${i + 1}/${names.length}] ${name} `);
+
+    // 尝试加密文件 (.png_) 和未加密文件 (.png)
+    const encPath = tilesetDir + name + '.png_';
+    const plainPath = tilesetDir + name + '.png';
+
+    let data = decryptRPGMVFile(encPath, keyBytes);
+    if (!data) {
+      data = decryptRPGMVFile(plainPath, keyBytes);
+    }
+    if (!data) {
+      // 可能是 Overlay 或其他格式
+      data = decryptRPGMVFile(tilesetDir + name, keyBytes);
+    }
+
+    if (data) {
+      const outPath = path.join(outDir, name + '.png');
+      fs.writeFileSync(outPath, data);
+      const size = (fs.statSync(outPath).size / 1024).toFixed(0);
+      process.stdout.write(`${size}KB ✓\n`);
+      ok++;
+    } else {
+      process.stdout.write('✗ 未找到\n');
+      fail++;
+    }
+  }
+
+  console.log(`\n完成! ${ok} 成功, ${fail} 失败`);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main();

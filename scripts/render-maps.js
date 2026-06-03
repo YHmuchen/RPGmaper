@@ -42,9 +42,15 @@ const GAME_DIR = (() => {
   return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
 })();
 
-const TS_DIR   = 'C:/Users/Muchen/maps/tilesets/';
-const OUT_DIR  = path.resolve(__dirname, '..', 'docs', 'maps');
-const PARALLAX_DIR = path.resolve(__dirname, '..', 'docs', 'parallax');
+// 项目目录：按项目名分开放，避免混杂
+const PROJECT_DIR = (() => {
+  const base = path.resolve(__dirname, '..', 'maps', 'projects');
+  const name = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+  return path.join(base, name);
+})();
+const TS_DIR        = PROJECT_DIR + '/tilesets/';
+const OUT_DIR       = PROJECT_DIR + '/maps/';
+const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';
 
 const PARALLAX_IMG_DIR = GAME_DIR + '/img/parallaxes/';
 
@@ -553,7 +559,7 @@ async function main() {
     if (mapInfos[i]) allIds.push(i);
   }
 
-  const ids = specificIds || allIds;
+  const ids = (specificIds && specificIds.length > 0) ? specificIds : allIds;
   console.log(`共 ${ids.length} 张地图\n`);
 
   let ok = 0, fail = 0;
