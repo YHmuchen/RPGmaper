@@ -30,6 +30,16 @@ const TILE_ID_MAX = 8192;
 const GAME_DIR = 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
 const TS_DIR   = 'C:/Users/Muchen/maps/tilesets/';
 const OUT_DIR  = path.resolve(__dirname, '..', 'docs', 'maps');
+const PARALLAX_DIR = path.resolve(__dirname, '..', 'docs', 'parallax');
+
+const PARALLAX_IMG_DIR = GAME_DIR + '/img/parallaxes/';
+
+// 加密密钥（来自 System.json）
+const ENC_KEY = (() => {
+  const sys = JSON.parse(fs.readFileSync(GAME_DIR + '/data/System.json', 'utf8'));
+  return sys.encryptionKey || '';
+})();
+const ENC_KEY_BYTES = ENC_KEY.match(/.{2}/g).map(h => parseInt(h, 16));
 
 // ─── Tile 类型判定 ─────────────────────────────────────────────
 const isA1   = id => id >= TILE_ID_A1  && id < TILE_ID_A2;
@@ -82,6 +92,35 @@ async function loadTS(name) {
   const buf = await sharp(fp).ensureAlpha().raw().toBuffer();
   tsCache[name] = { buf, width: meta.width, height: meta.height };
   return tsCache[name];
+}
+
+// ─── 视差图解密 ────────────────────────────────────────────────
+function decryptParallaxImage(name) {
+  const filePath = PARALLAX_IMG_DIR + name + '.png_';
+  if (!fs.existsSync(filePath)) return null;
+  const buf = fs.readFileSync(filePath);
+  // 验证文件头: RPGMV + 12 字节头
+  const header = Array.from(new Uint8Array(buf.slice(0, 16)));
+  const expected = [0x52,0x50,0x47,0x4d,0x56,0,0,0,0,0x03,0x01,0,0,0,0,0];
+  if (!header.every((b, i) => b === expected[i])) return null;
+  // 解密: 对 body 前 16 字节做 XOR
+  const body = Buffer.from(buf.slice(16));
+  for (let i = 0; i < 16 && i < body.length; i++) {
+    body[i] ^= ENC_KEY_BYTES[i];
+  }
+  return body;
+}
+
+// 检查地图是否完全无 tile（纯视差地图）
+function hasNoTiles(map) {
+  for (let z = 0; z < 4; z++) {
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if ((map.data[(z * map.height + y) * map.width + x] || 0) > 0) return false;
+      }
+    }
+  }
+  return true;
 }
 
 // ─── 像素级 alpha blend ────────────────────────────────────────
@@ -277,6 +316,11 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     return false;
   }
 
+  // 视差图处理：若地图有 parallax 且无 tile，直接用视差图
+  if (map.parallaxName && map.parallaxName.length > 0) {
+    return await renderParallaxMap(map, mapId);
+  }
+
   const w = map.width, h = map.height;
   const ts = tilesets[map.tilesetId];
   if (!ts || !ts.tilesetNames) {
@@ -384,6 +428,90 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 
   const sizeKB = (fs.statSync(outPath).size / 1024).toFixed(0);
   process.stdout.write(`  ${outName}  ${w}×${h} tiles  ${outW}×${outH}px  ${sizeKB}KB\n`);
+  return true;
+}
+
+// ─── 渲染视差地图 ──────────────────────────────────────────────
+async function renderParallaxMap(map, mapId) {
+  const pName = map.parallaxName;
+  const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
+
+  // 解密视差图
+  const data = decryptParallaxImage(pName);
+  if (!data) {
+    console.log(`✗ parallax 解密失败: ${pName}`);
+    return false;
+  }
+
+  // 输出到 docs/parallax/（供 viewer 加载）
+  fs.mkdirSync(PARALLAX_DIR, { recursive: true });
+  const safeName = pName.replace(/[\/:*?"<>|]/g, '_');
+  const paraOut = PARALLAX_DIR + '/parallax_' + safeName + '.png';
+  fs.writeFileSync(paraOut, data);
+
+  // 检查是否有 tile（有的话需要复合 tiles + parallax）
+  const hasTiles = !hasNoTiles(map);
+  if (hasTiles) {
+    // 有 tile 的地图 — 先渲染 parallax 背景再叠加 tiles
+    const meta = await sharp(data).metadata();
+    const outW = map.width * TILE, outH = map.height * TILE;
+
+    // 创建背景缓冲区：用 parallax 图填满
+    const bgBuf = Buffer.alloc(outW * outH * 4, 0);
+
+    // 将 parallax 图缩放到地图尺寸
+    const resized = await sharp(data)
+      .resize(outW, outH, { fit: 'fill' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer();
+    resized.copy(bgBuf);
+
+    // 在上面渲染 tiles（用原有逻辑）
+    const w = map.width, h = map.height;
+    const ts = tilesets[map.tilesetId];
+    const tsNames = ts.tilesetNames;
+    const flags = ts.flags || {};
+
+    const needed = new Set();
+    for (const n of tsNames) { if (n && n.length > 0) needed.add(n); }
+    const tsImgs = {};
+    for (const n of needed) {
+      const img = await loadTS(n);
+      if (!img) { console.log('  tileset 缺失: ' + n); continue; }
+      tsImgs[n] = img;
+    }
+
+    const upperBuf = Buffer.alloc(outW * outH * 4, 0);
+    const lowerCmds = [], upperCmds = [];
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const dx = x * TILE, dy = y * TILE;
+        for (let z = 0; z < 4; z++) {
+          const tid = readMapData(map.data, w, h, z, x, y);
+          addTile(tid, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
+        }
+      }
+    }
+
+    for (const c of lowerCmds) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, bgBuf, outW, c.dx, c.dy, c.w, c.h);
+    for (const c of upperCmds) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, upperBuf, outW, c.dx, c.dy, c.w, c.h);
+    compositeLayer(upperBuf, bgBuf, outW * outH * 4);
+
+    const outPath = OUT_DIR + '/' + outName;
+    await sharp(bgBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
+    const sizeKB = (fs.statSync(outPath).size / 1024).toFixed(0);
+    process.stdout.write(`  ${outName}  parallax+${tilesets[map.tilesetId].name}  ${outW}×${outH}px  ${sizeKB}KB\n`);
+  } else {
+    // 纯视差图（无 tile）— 直接输出原图
+    const outPath = OUT_DIR + '/' + outName;
+    fs.writeFileSync(outPath, data);
+    const sizeKB = (fs.statSync(outPath).size / 1024).toFixed(0);
+    const meta = await sharp(data).metadata();
+    process.stdout.write(`  ${outName}  parallax  ${meta.width}×${meta.height}px  ${sizeKB}KB\n`);
+  }
+
   return true;
 }
 
