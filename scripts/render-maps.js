@@ -12,6 +12,11 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
+// 读取 JSON 文件，自动去除 UTF-8 BOM
+function readJSON(fp) {
+  return JSON.parse(fs.readFileSync(fp, 'utf8').replace(/^﻿/, ''));
+}
+
 // ─── 常量 ───────────────────────────────────────────────────────
 const TILE = 48;
 const HALF = 24;
@@ -46,7 +51,7 @@ const PARALLAX_IMG_DIR = GAME_DIR + '/img/parallaxes/';
 // 加密密钥（来自 System.json）
 const ENC_KEY_BYTES = (() => {
   try {
-    const sys = JSON.parse(fs.readFileSync(GAME_DIR + '/data/System.json', 'utf8'));
+    const sys = readJSON(GAME_DIR + '/data/System.json');
     const key = sys.encryptionKey || '';
     return key.length >= 32 ? key.match(/.{2}/g).map(h => parseInt(h, 16)) : [];
   } catch (e) {
@@ -323,7 +328,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     return false;
   }
 
-  const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+  const map = readJSON(mapPath);
   if (!map || !map.data) {
     console.log(`[${mapId}] ✗ 无数据`);
     return false;
@@ -529,7 +534,7 @@ async function main() {
     console.error('✗ 找不到 Tilesets.json');
     process.exit(1);
   }
-  const allTilesets = JSON.parse(fs.readFileSync(tilesetsPath, 'utf8'));
+  const allTilesets = readJSON(tilesetsPath);
   // 转换为以 id 为 key 的 map
   const tilesets = {};
   for (const ts of allTilesets) {
@@ -542,7 +547,7 @@ async function main() {
     console.error('✗ 找不到 MapInfos.json');
     process.exit(1);
   }
-  const mapInfos = JSON.parse(fs.readFileSync(mapInfosPath, 'utf8'));
+  const mapInfos = readJSON(mapInfosPath);
   const allIds = [];
   for (let i = 1; i < mapInfos.length; i++) {
     if (mapInfos[i]) allIds.push(i);
