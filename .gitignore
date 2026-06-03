@@ -6,9 +6,25 @@ docs/maps/
 
 # 依赖
 node_modules/
-*.lnk
 docs/parallax/
 
 # 自动生成
 launch.bat
-restore-cdp.bat
+export-maps.bat
+extract-parallax.bat
+setup-launcher.bat
+watch-game.bat
+docs/connections.json
+docs/visited_data.js
+docs/map_sizes.json
+
+# 系统文件
+*.lnk
+Thumbs.db
+.DS_Store
+
+# IDE / AI 配置（不提交）
+.claude/
+.cursor/
+.kagent/
+.vscode/
