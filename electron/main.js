@@ -111,7 +111,6 @@ ipcMain.handle('run-script', async (event, scriptName, gameDir) => {
       const proc = spawn(process.execPath, [scriptPath, gameDir], {
         cwd: PROJECT_ROOT,
         stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 600000,
       });
 
       let output = '';
