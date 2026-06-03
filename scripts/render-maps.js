@@ -486,7 +486,6 @@ async function renderParallaxMap(map, mapId, tilesets) {
 
     // 在上面渲染 tiles（用原有逻辑）
     const w = map.width, h = map.height;
-    const ts = tilesets[map.tilesetId];
     const tsNames = ts.tilesetNames;
     const flags = ts.flags || {};
 
