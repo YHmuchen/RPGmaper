@@ -40,7 +40,6 @@ const GAME_DIR = (() => {
 // tileset 图片目录：环境变量 > GAME_DIR 同级 > 默认
 const TS_DIR = (() => {
   if (process.env.TS_DIR) return process.env.TS_DIR.replace(/\\/g, '/') + '/';
-  // 如果 GAME_DIR 的上级目录有 tilesets/ 就用它
   const guess = path.resolve(GAME_DIR, '..', 'tilesets') + '/';
   if (fs.existsSync(guess)) return guess;
   return 'C:/Users/Muchen/maps/tilesets/';
