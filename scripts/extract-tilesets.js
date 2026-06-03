@@ -111,6 +111,7 @@ function main() {
 
     if (data) {
       const outPath = path.join(outDir, name + '.png');
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, data);
       const size = (fs.statSync(outPath).size / 1024).toFixed(0);
       process.stdout.write(`${size}KB ✓\n`);
