@@ -94,7 +94,7 @@ ipcMain.handle('add-project', async () => {
   return scanProjects();
 });
 
-ipcMain.handle('run-script', async (event, scriptName, gameDir) => {
+ipcMain.handle('run-script', (event, scriptName, gameDir) => {
   const scripts = {
     tilesets: { file: 'scripts/extract-tilesets.js', label: '导出 tileset' },
     maps: { file: 'scripts/render-maps.js', label: '渲染地图' },
@@ -104,42 +104,26 @@ ipcMain.handle('run-script', async (event, scriptName, gameDir) => {
   if (!s) return { ok: false, error: '未知脚本' };
 
   const scriptPath = path.join(PROJECT_ROOT, s.file);
-  if (!fs.existsSync(scriptPath)) return { ok: false, error: `找不到 ${s.file}` };
+  if (!fs.existsSync(scriptPath)) return { ok: false, error: '找不到' + s.file };
 
-  try {
-    await new Promise((resolve, reject) => {
-      const proc = spawn("node", [scriptPath, gameDir], {
-        cwd: PROJECT_ROOT,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-
-      let output = '';
-      proc.stdout.on('data', d => {
-        const text = d.toString();
-        output += text;
-        mainWindow.webContents.send('script-output', {
-          script: scriptName,
-          text: text.trim(),
-        });
-      });
-      proc.stderr.on('data', d => { output += d.toString(); });
-
-      proc.on('close', code => {
-        mainWindow.webContents.send('script-done', {
-          script: scriptName,
-          ok: code === 0,
-          error: code !== 0 ? output : null,
-        });
-        if (code === 0) resolve();
-        else reject(new Error(output));
-      });
-      proc.on('error', reject);
+  return new Promise(resolve => {
+    const proc = require('child_process').spawn("node", [scriptPath, gameDir], {
+      cwd: PROJECT_ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
-});
+
+    let output = '';
+    proc.stdout.on('data', d => { output += d.toString(); });
+    proc.stderr.on('data', d => { output += d.toString(); });
+
+    proc.on('close', code => {
+      resolve({ ok: code === 0, error: code !== 0 ? output : null, output });
+    });
+    proc.on('error', err => {
+      resolve({ ok: false, error: err.message });
+    });
+  });
+});;
 
 ipcMain.handle('delete-project', (event, name) => {
   const dir = path.join(PROJECTS_DIR, name);
