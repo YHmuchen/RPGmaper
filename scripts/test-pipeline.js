@@ -105,11 +105,18 @@ async function main() {
   }
 
   // 检查实际导出的文件数
+  function countPngRecursive(dir) {
+    let count = 0;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) count += countPngRecursive(path.join(dir, entry.name));
+      else if (entry.name.endsWith('.png')) count++;
+    }
+    return count;
+  }
   const tsDir = path.join(projectDir, 'tilesets');
   if (fs.existsSync(tsDir)) {
-    const files = fs.readdirSync(tsDir).filter(f => f.endsWith('.png'));
-    report.tilesets.exported = files.length;
-    report.tilesets.pass = files.length > 0 && tsResult.code === 0;
+    report.tilesets.exported = countPngRecursive(tsDir);
+    report.tilesets.pass = report.tilesets.exported > 0 && tsResult.code === 0;
 
     if (verbose) {
       console.log(`  导出: ${report.tilesets.exported}/${report.tilesets.expected}`);
