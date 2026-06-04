@@ -114,11 +114,15 @@ async function loadData() {
     }
   }
 
-  // 加载传送点
+  // 加载传送点（优先项目目录，备选 docs/）
   try {
-    const transfersJS = await electronAPI.readDataFile(PROJECT_DIR + '/transfers_data.js');
+    var transfersJS = await electronAPI.readDataFile(PROJECT_DIR + '/transfers_data.js');
+    if (!transfersJS) {
+      var docsFallback = PROJECT_DIR.replace(/\\/g, '/').replace(/maps\/projects\/[^\/]+$/, 'docs/transfers_data.js');
+      transfersJS = await electronAPI.readDataFile(docsFallback);
+    }
     if (transfersJS) {
-      const m = transfersJS.match(/var TRANSFERS_ALL = ([\s\S]*?);/);
+      var m = transfersJS.match(/var TRANSFERS_ALL = ([\s\S]*?);/);
       if (m) TRANSFERS = JSON.parse(m[1]);
     }
   } catch(e) {}
