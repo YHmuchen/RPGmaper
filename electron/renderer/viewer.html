@@ -39,11 +39,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   <input type="checkbox" id="showGrid" checked>
   <label>标签</label>
   <input type="checkbox" id="showLabels">
-  <button id="fitContent" style="background:#5a5a3a;">⊞ 适配内容</button>
-  <label>背景</label>
-  <input type="checkbox" id="showBg" checked>
   <span>缩放: <span id="zoomLevel">100</span>%</span>
-  <button id="zoomFit" style="background:#3a5a3a;font-size:11px;padding:2px 8px;">⌂ 居中</button>
   <button id="clearSel">清空选择</button>
   <span class="info" id="status">就绪</span>
 </div>
@@ -90,12 +86,10 @@ const wrap = document.getElementById('canvasWrap');
 let img = new Image();
 let zoom = 1;
 let selections = [];
-let tilemap = null;  // { w, h, data: [z0,z1,z2,z3,s, …] }
 let MAP_LIST = [];
 let PARALLAX_MAPS = {};
 let TRANSFERS = {};
-let _entrySource = null;
- // { fromMap, fromFx, fromFy, toMap, toTx, toTy }
+let _entrySource = null; // { fromMap, fromFx, fromFy, toMap, toTx, toTy }
 let _skipSelectChange = false;
 
 document.getElementById('projectName').textContent = '🗺️ ' + PROJECT_NAME;
@@ -154,20 +148,7 @@ function resolveMapPath(mapId) {
 function loadMap(mapId, entrySource) {
   mapId = Number(mapId);
   _entrySource = entrySource || null;
-  _cropBounds = null;
   const path = resolveMapPath(mapId);
-  const pad = String(mapId).padStart(4, '0');
-
-  // 加载 tilemap sidecar
-  tilemap = null;
-  const tilemapPath = PROJECT_DIR + '/maps/Map' + pad + '.tilemap.json';
-  electronAPI.readDataFile(tilemapPath).then(function(data) {
-    if (data) { try { tilemap = JSON.parse(data); } catch(e) {} }
-    // tilemap 加载完成后自动适配内容
-    // tilemap 就绪后重绘网格（裁剪遮罩会自动显示）
-    if (imgLoaded) { drawGrid(); setTimeout(function() { enableCrop(); }, 0); }
-  }).catch(function() {});
-
   img.onerror = function() {
     document.getElementById('status').textContent = '地图 ' + mapId + ' 不存在，请先生成地图数据';
   };
@@ -181,24 +162,16 @@ function loadMap(mapId, entrySource) {
     drawGrid();
     applyZoom();
     imgLoaded = true;
-    var tw = tilemap ? tilemap.w + '×' + tilemap.h + '格' : '';
-    setTimeout(function() { enableCrop(); }, 0);
-    document.getElementById('status').textContent = img.width + '×' + img.height + 'px' + (tw ? ' ' + tw : '');
+    document.getElementById('status').textContent = img.width + '×' + img.height + 'px';
   };
   img.src = path;
+  // 如果图片已缓存，onload 可能在上面的 src 赋值时同步触发，
+  // 但那时 _entrySource 可能被 change 事件提前清了。
+  // 确保 entrySource 生效后重绘。
   if (entrySource && img.complete && img.naturalWidth > 0) {
     window._currentMapId = mapId;
-    drawMap();
     drawGrid();
-    applyZoom();
-    setTimeout(function() { enableCrop(); }, 50);
   }
-}
-
-// 获取格子的 tile ID（从 tilemap，无 tilemap 时返回 null）
-function getTileId(tx, ty, layer) {
-  if (!tilemap || tx < 0 || ty < 0 || tx >= tilemap.w || ty >= tilemap.h) return null;
-  return tilemap.data[(ty * tilemap.w + tx) * 5 + (layer >= 0 && layer <= 4 ? layer : 0)];
 }
 
 // ─── 绘制 ─────────────────────────────────────────────────────
@@ -206,33 +179,22 @@ function drawMap() { ctx.drawImage(img, 0, 0); }
 
 function drawGrid() {
   gctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-
-  // 裁剪遮罩：逐格判断，只盖掉背景 tile
-  if (_cropActive && tilemap) {
-    var d = tilemap.data, tw = tilemap.w, th = tilemap.h;
-    if (tw > 0 && th > 0) {
-      // 统计背景 tile（出现最多的 5 层组合）
-      var freq = {};
-      for (var gi = 0; gi < d.length; gi += 5) {
-        var k = d[gi]+','+d[gi+1]+','+d[gi+2]+','+d[gi+3]+','+d[gi+4];
-        freq[k] = (freq[k] || 0) + 1;
-      }
-      var bgKey = Object.keys(freq).reduce(function(a,b){return freq[a]>freq[b]?a:b});
-      var bg = bgKey.split(',').map(Number);
-
-      gctx.fillStyle = '#1a1a1a';
-      for (var gy = 0; gy < th; gy++) {
-        for (var gx = 0; gx < tw; gx++) {
-          var gi = (gy * tw + gx) * 5;
-          if (d[gi]===bg[0] && d[gi+1]===bg[1] && d[gi+2]===bg[2] && d[gi+3]===bg[3] && d[gi+4]===bg[4]) {
-            gctx.fillRect(gx * 48, gy * 48, 48, 48);
-          }
-        }
-      }
-    }
-  }
-
-  // 传送点（独立于网格开关）
+  if (!document.getElementById('showGrid').checked) return;
+  const w = gridCanvas.width, h = gridCanvas.height;
+  gctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  gctx.lineWidth = 1;
+  for (let x = 0; x <= w; x += TILE) { gctx.beginPath(); gctx.moveTo(x, 0); gctx.lineTo(x, h); gctx.stroke(); }
+  for (let y = 0; y <= h; y += TILE) { gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(w, y); gctx.stroke(); }
+  // 选择
+  selections.forEach(s => {
+    const px = s.absX * TILE, py = s.absY * TILE;
+    gctx.fillStyle = 'rgba(0,180,255,0.25)';
+    gctx.fillRect(px, py, TILE, TILE);
+    gctx.strokeStyle = 'rgba(0,180,255,0.8)';
+    gctx.lineWidth = 2;
+    gctx.strokeRect(px, py, TILE, TILE);
+  });
+  // 传送点
   const mid = window._currentMapId;
   if (document.getElementById('showTransfers').checked && mid && !isNaN(mid)) {
     const tdata = TRANSFERS[Number(mid)];
@@ -280,31 +242,13 @@ function drawGrid() {
       }
     }
   }
-  // 网格与选中（受网格开关控制）
-  if (document.getElementById('showGrid').checked) {
-    const w = gridCanvas.width, h = gridCanvas.height;
-    gctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    gctx.lineWidth = 1;
-    for (let x = 0; x <= w; x += TILE) { gctx.beginPath(); gctx.moveTo(x, 0); gctx.lineTo(x, h); gctx.stroke(); }
-    for (let y = 0; y <= h; y += TILE) { gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(w, y); gctx.stroke(); }
-    // 选择
-    selections.forEach(s => {
-      const px = s.absX * TILE, py = s.absY * TILE;
-      gctx.fillStyle = 'rgba(0,180,255,0.25)';
-      gctx.fillRect(px, py, TILE, TILE);
-      gctx.strokeStyle = 'rgba(0,180,255,0.8)';
-      gctx.lineWidth = 2;
-      gctx.strokeRect(px, py, TILE, TILE);
-    });
-  }
   // 标签
   if (document.getElementById('showLabels').checked) {
-    var gw = gridCanvas.width, gh = gridCanvas.height;
     gctx.fillStyle = 'rgba(255,255,200,0.6)';
     gctx.font = '9px sans-serif';
-    for (var ly = 0; ly < gh; ly += TILE * 4)
-      for (var lx = 0; lx < gw; lx += TILE * 4)
-        gctx.fillText('(' + Math.floor(lx/TILE) + ',' + Math.floor(ly/TILE) + ')', lx + 2, ly + 10);
+    for (let y = 0; y < h; y += TILE * 4)
+      for (let x = 0; x < w; x += TILE * 4)
+        gctx.fillText('(' + Math.floor(x/TILE) + ',' + Math.floor(y/TILE) + ')', x + 2, y + 10);
   }
 }
 
@@ -393,19 +337,7 @@ function updateUI() {
     });
     list.appendChild(li);
   });
-  // 在状态栏显示最近选中格子的 tile 信息
-  var info = selections.length + ' 个格子已选择';
-  if (selections.length > 0 && tilemap) {
-    var last = selections[selections.length - 1];
-    var x = last.absX, y = last.absY;
-    var z0 = getTileId(x, y, 0);
-    var z1 = getTileId(x, y, 1);
-    var z2 = getTileId(x, y, 2);
-    var z3 = getTileId(x, y, 3);
-    var s = getTileId(x, y, 4);
-    info += ' | (' + x + ',' + y + ') z:[' + z0 + ',' + z1 + ',' + z2 + ',' + z3 + '] shd:' + s;
-  }
-  document.getElementById('selStatus').textContent = info;
+  document.getElementById('selStatus').textContent = selections.length + ' 个格子已选择';
 }
 
 // ─── 缩放 ─────────────────────────────────────────────────────
@@ -461,128 +393,7 @@ document.addEventListener('keydown', function(e) {
   if (e.ctrlKey && e.key === '0') { e.preventDefault(); zoom = 1; applyZoom(); }
 });
 
-// ─── 裁剪状态 ───────────────────────────────────────────────
-var _cropBounds = null; // { minX, minY, maxX, maxY } 或 null
-var _cropActive = true; // 默认开启（像传送点/网格一样）
-var _contentImg = null;
-var _contentLoaded = false;
-
-function computeContentBounds() {
-  if (!tilemap) return null;
-  var w = tilemap.w, h = tilemap.h, d = tilemap.data;
-  if (!w || !h) return null;
-  var minY = 0, maxY = h - 1, minX = 0, maxX = w - 1;
-  for (minY = 0; minY < h; minY++) { var i0 = (minY * w) * 5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var x=1;x<w&&s;x++){var i=(minY*w+x)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  for (maxY = h-1; maxY>=0; maxY--) { var i0=(maxY*w)*5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var x=1;x<w&&s;x++){var i=(maxY*w+x)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  for (minX = 0; minX < w; minX++) { var i0=(0*w+minX)*5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var y=1;y<h&&s;y++){var i=(y*w+minX)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  for (maxX = w-1; maxX>=0; maxX--) { var i0=(0*w+maxX)*5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var y=1;y<h&&s;y++){var i=(y*w+maxX)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  if (minX > maxX || minY > maxY) return null;
-  return { minX, minY, maxX, maxY, w: maxX-minX+1, h: maxY-minY+1 };
-}
-
-// ─── 裁剪逻辑（强制开/关 + 按钮切换）────────────────────
-function enableCrop() {
-  if (!tilemap || !imgLoaded) return;
-  // 如果已有 bounds，说明已经缩放过了，跳过
-  if (_cropBounds) return;
-  var b = computeContentBounds();
-  if (!b) return;
-  _cropBounds = b;
-  _cropActive = true;
-  document.getElementById('fitContent').style.background = '#6a9a3a';
-  var TILE = 48;
-  var cropX = b.minX * TILE, cropY = b.minY * TILE;
-  var cropW = b.w * TILE, cropH = b.h * TILE;
-  var area = document.getElementById('scrollArea');
-  var viewW = area.clientWidth, viewH = area.clientHeight;
-  zoom = Math.max(0.05, Math.min(10, Math.min(viewW / cropW, viewH / cropH, 2)));
-  area.scrollLeft = cropX * zoom - (viewW - cropW * zoom) / 2;
-  area.scrollTop = cropY * zoom - (viewH - cropH * zoom) / 2;
-  applyZoom();
-  drawGrid();
-  document.getElementById('status').textContent = '裁剪: ' + b.w + '×' + b.h + ' 格';
-}
-
-function toggleCrop() {
-  // 按钮点击切换
-  if (!tilemap || !imgLoaded) return;
-  if (_cropActive) {
-    _cropActive = false;
-    _cropBounds = null;
-    document.getElementById('fitContent').style.background = '#5a5a3a';
-    zoom = 1; applyZoom();
-    drawGrid();
-    document.getElementById('status').textContent = '裁剪关闭';
-  } else {
-    enableCrop();
-    if (!_cropActive) document.getElementById('status').textContent = '未检测到可裁剪区域';
-  }
-}
-
-document.getElementById('fitContent').addEventListener('click', toggleCrop);
-document.getElementById('zoomFit').addEventListener('click', function() {
-  if (!tilemap || !imgLoaded) return;
-  var b = computeContentBounds();
-  if (!b) return;
-  var TILE = 48;
-  var cropX = b.minX * TILE, cropY = b.minY * TILE;
-  var cropW = b.w * TILE, cropH = b.h * TILE;
-  var area = document.getElementById('scrollArea');
-  var viewW = area.clientWidth, viewH = area.clientHeight;
-  var fz = Math.max(0.05, Math.min(10, Math.min(viewW / cropW, viewH / cropH, 2)));
-  zoom = fz;
-  area.scrollLeft = cropX * zoom - (viewW - cropW * zoom) / 2;
-  area.scrollTop = cropY * zoom - (viewH - cropH * zoom) / 2;
-  applyZoom();
-  drawGrid();
-  document.getElementById('status').textContent = '居中: ' + b.w + '×' + b.h + ' 格';
-});
-document.getElementById('showBg').addEventListener('change', function() {
-  if (!imgLoaded || !window._currentMapId) return;
-  var show = document.getElementById('showBg').checked;
-  if (show) {
-    // 恢复主图
-    var mid = window._currentMapId;
-    loadMap(mid);
-  } else {
-    // 加载无背景图
-    var mid = window._currentMapId;
-    var pad = String(mid).padStart(4, '0');
-    var path = 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '_content.png';
-    if (_contentLoaded && _contentImg) {
-      img = _contentImg;
-      mapCanvas.width = img.width;
-      mapCanvas.height = img.height;
-      gridCanvas.width = img.width;
-      gridCanvas.height = img.height;
-      drawMap();
-      drawGrid();
-      applyZoom();
-    } else {
-      var newImg = new Image();
-      newImg._mapId = mid;
-      newImg.onload = function() {
-        _contentImg = newImg;
-        _contentLoaded = true;
-        img = newImg;
-        mapCanvas.width = img.width;
-        mapCanvas.height = img.height;
-        gridCanvas.width = img.width;
-        gridCanvas.height = img.height;
-        drawMap();
-        drawGrid();
-        applyZoom();
-        document.getElementById('status').textContent = '背景已隐藏';
-      };
-      newImg.onerror = function() {
-        document.getElementById('showBg').checked = true;
-        document.getElementById('status').textContent = '未找到 _content.png，请重新渲染';
-      };
-      newImg.src = path;
-    }
-  }
-});
-
+// ─── 事件绑定 ─────────────────────────────────────────────────
 document.getElementById('clearSel').addEventListener('click', function() { selections = []; updateUI(); });
 document.getElementById('showGrid').addEventListener('change', drawGrid);
 document.getElementById('showLabels').addEventListener('change', drawGrid);
