@@ -209,24 +209,18 @@ function drawMap() { ctx.drawImage(img, 0, 0); }
 function drawGrid() {
   gctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
 
-  // 裁剪遮罩：逐格判断，只盖掉背景 tile
+  // 裁剪遮罩：仅盖掉「均匀边缘」以外的背景 tile，不碰内容区域内部
   if (_cropActive && tilemap) {
     var d = tilemap.data, tw = tilemap.w, th = tilemap.h;
-    if (tw > 0 && th > 0) {
-      // 统计背景 tile（出现最多的 5 层组合）
-      var freq = {};
-      for (var gi = 0; gi < d.length; gi += 5) {
-        var k = d[gi]+','+d[gi+1]+','+d[gi+2]+','+d[gi+3]+','+d[gi+4];
-        freq[k] = (freq[k] || 0) + 1;
-      }
-      var bgKey = Object.keys(freq).reduce(function(a,b){return freq[a]>freq[b]?a:b});
-      var bg = bgKey.split(',').map(Number);
-
+    if (tw > 0 && th > 0 && _cropBounds) {
       gctx.fillStyle = '#1a1a1a';
       for (var gy = 0; gy < th; gy++) {
         for (var gx = 0; gx < tw; gx++) {
+          // 只处理内容边界以外的 tile
+          if (gx >= _cropBounds.minX && gx <= _cropBounds.maxX && gy >= _cropBounds.minY && gy <= _cropBounds.maxY) continue;
+          // 判断是否等于背景 tile
           var gi = (gy * tw + gx) * 5;
-          if (d[gi]===bg[0] && d[gi+1]===bg[1] && d[gi+2]===bg[2] && d[gi+3]===bg[3] && d[gi+4]===bg[4]) {
+          if (_bgVals && d[gi] === _bgVals[0] && d[gi+1] === _bgVals[1] && d[gi+2] === _bgVals[2] && d[gi+3] === _bgVals[3] && d[gi+4] === _bgVals[4]) {
             gctx.fillRect(gx * 48, gy * 48, 48, 48);
           }
         }
@@ -464,8 +458,9 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ─── 裁剪状态 ───────────────────────────────────────────────
-var _cropBounds = null; // { minX, minY, maxX, maxY } 或 null
-var _cropActive = true; // 默认开启（像传送点/网格一样）
+var _cropBounds = null;
+var _cropActive = true;
+var _bgVals = null; // 背景 tile 的 5 层值
 var _contentImg = null;
 var _contentLoaded = false;
 
@@ -490,6 +485,14 @@ function enableCrop() {
   var b = computeContentBounds();
   if (!b) return;
   _cropBounds = b;
+  // 计算背景 tile
+  var d = tilemap.data, freq = {};
+  for (var fi = 0; fi < d.length; fi += 5) {
+    var fk = d[fi]+','+d[fi+1]+','+d[fi+2]+','+d[fi+3]+','+d[fi+4];
+    freq[fk] = (freq[fk] || 0) + 1;
+  }
+  var bgKey = Object.keys(freq).reduce(function(a,b){return freq[a]>freq[b]?a:b});
+  _bgVals = bgKey.split(',').map(Number);
   _cropActive = true;
   document.getElementById('fitContent').style.background = '#6a9a3a';
   var TILE = 48;
