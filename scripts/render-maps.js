@@ -378,11 +378,19 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     return false;
   }
 
-  // 预扫描：找出最常见的背景 tile（5 层全比）
+  // 预扫描：找出最常见的背景 tile
+  // map.data 布局为层主序: [z0全部, z1全部, z2全部, z3全部, z4全部]
   const bgFreq = {};
-  for (let bi = 0; bi < map.data.length; bi += 5) {
-    const bk = map.data[bi] + ',' + map.data[bi+1] + ',' + map.data[bi+2] + ',' + map.data[bi+3] + ',' + map.data[bi+4];
-    bgFreq[bk] = (bgFreq[bk] || 0) + 1;
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const t0 = readMapData(map.data, w, h, 0, px, py);
+      const t1 = readMapData(map.data, w, h, 1, px, py);
+      const t2 = readMapData(map.data, w, h, 2, px, py);
+      const t3 = readMapData(map.data, w, h, 3, px, py);
+      const t4 = readMapData(map.data, w, h, 4, px, py);
+      const bk = t0 + ',' + t1 + ',' + t2 + ',' + t3 + ',' + t4;
+      bgFreq[bk] = (bgFreq[bk] || 0) + 1;
+    }
   }
   const bgKey = Object.keys(bgFreq).reduce((a, b) => bgFreq[a] > bgFreq[b] ? a : b);
   const bgVals = bgKey.split(',').map(Number);
@@ -407,7 +415,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
       const tileId2 = readMapData(map.data, w, h, 2, x, y);
       const tileId3 = readMapData(map.data, w, h, 3, x, y);
       const shadowBits = readMapData(map.data, w, h, 4, x, y);
-      const isBg = tileId0 === bgVals[0] && tileId1 === bgVals[1] && tileId2 === bgVals[2] && tileId3 === bgVals[3];
+      const isBg = tileId0 === bgVals[0] && tileId1 === bgVals[1] && tileId2 === bgVals[2] && tileId3 === bgVals[3] && shadowBits === bgVals[4];
 
       const l = isBg ? bgLower : cLower;
       const u = isBg ? bgUpper : cUpper;

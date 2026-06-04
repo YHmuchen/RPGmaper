@@ -155,6 +155,8 @@ function loadMap(mapId, entrySource) {
   mapId = Number(mapId);
   _entrySource = entrySource || null;
   _cropBounds = null;
+  _contentImg = null;
+  _contentLoaded = false;
   const path = resolveMapPath(mapId);
   const pad = String(mapId).padStart(4, '0');
 

@@ -173,13 +173,18 @@ function main() {
     }
 
     if (mapTransfers.length > 0) {
-      // 去重：同一 tile 位置指向同一目标的只保留一条
-      const seen = new Set();
-      const deduped = [];
+      // 去重：同一位置指向同一目标的只保留一条，优先保留 source=map
+      const dedupMap = new Map();
       for (const t of mapTransfers) {
         const k = t.fx + ',' + t.fy + ',' + t.tid + ',' + t.tx + ',' + t.ty;
-        if (!seen.has(k)) { seen.add(k); deduped.push(t); }
+        const prev = dedupMap.get(k);
+        if (!prev) { dedupMap.set(k, t); continue; }
+        // 已有的是 commonEvent，新的是直接 map → 替换
+        if (prev.source && prev.source.indexOf('commonEvent') === 0 && t.source === 'map') {
+          dedupMap.set(k, t);
+        }
       }
+      const deduped = [...dedupMap.values()];
       allTransfers[mapId] = deduped;
       mapsWithTransfers++;
     }
