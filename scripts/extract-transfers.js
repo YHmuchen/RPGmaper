@@ -198,9 +198,14 @@ function main() {
 
   // 同时输出到项目目录（供查看器和 API 服务使用）
   const gameName = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
-  const projTransfers = path.join(__dirname, '..', 'maps', 'projects', gameName, 'transfers_data.js');
-  if (fs.existsSync(path.dirname(projTransfers))) {
-    fs.writeFileSync(projTransfers, content, 'utf8');
+  const projDir = path.join(__dirname, '..', 'maps', 'projects', gameName);
+  const projectsBase = path.join(__dirname, '..', 'maps', 'projects');
+  try {
+    if (path.resolve(projDir).startsWith(path.resolve(projectsBase)) && fs.existsSync(projDir)) {
+      fs.writeFileSync(path.join(projDir, 'transfers_data.js'), content, 'utf8');
+    }
+  } catch (e) {
+    console.log('  ⚠ 写入项目目录失败:', e.message);
   }
 
   const stats = {
