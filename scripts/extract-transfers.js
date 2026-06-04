@@ -173,7 +173,14 @@ function main() {
     }
 
     if (mapTransfers.length > 0) {
-      allTransfers[mapId] = mapTransfers;
+      // 去重：同一 tile 位置指向同一目标的只保留一条
+      const seen = new Set();
+      const deduped = [];
+      for (const t of mapTransfers) {
+        const k = t.fx + ',' + t.fy + ',' + t.tid + ',' + t.tx + ',' + t.ty;
+        if (!seen.has(k)) { seen.add(k); deduped.push(t); }
+      }
+      allTransfers[mapId] = deduped;
       mapsWithTransfers++;
     }
   }
@@ -183,6 +190,13 @@ function main() {
     'var TRANSFERS_ALL = ' + JSON.stringify(allTransfers, null, 2) + ';\n';
 
   fs.writeFileSync(OUT_FILE, content, 'utf8');
+
+  // 同时输出到项目目录（供查看器和 API 服务使用）
+  const gameName = path.basename(GAME_DIR);
+  const projTransfers = path.join(__dirname, '..', 'maps', 'projects', gameName, 'transfers_data.js');
+  if (fs.existsSync(path.dirname(projTransfers))) {
+    fs.writeFileSync(projTransfers, content, 'utf8');
+  }
 
   const stats = {
     totalMaps: mapIds.length,

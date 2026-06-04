@@ -378,12 +378,24 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     return false;
   }
 
+  // 预扫描：找出最常见的背景 tile（5 层全比）
+  const bgFreq = {};
+  for (let bi = 0; bi < map.data.length; bi += 5) {
+    const bk = map.data[bi] + ',' + map.data[bi+1] + ',' + map.data[bi+2] + ',' + map.data[bi+3] + ',' + map.data[bi+4];
+    bgFreq[bk] = (bgFreq[bk] || 0) + 1;
+  }
+  const bgKey = Object.keys(bgFreq).reduce((a, b) => bgFreq[a] > bgFreq[b] ? a : b);
+  const bgVals = bgKey.split(',').map(Number);
+
   // 两个缓冲区: lower 层先绘制, upper 层后合成上去
   const lowerBuf = Buffer.alloc(outW * outH * 4, 0);
   const upperBuf = Buffer.alloc(outW * outH * 4, 0);
 
-  const lowerCmds = [];  // { ts, sx, sy, dx, dy, w, h }
-  const upperCmds = [];
+  // 背景/内容分离的指令队列
+  const bgLower = [], bgUpper = [];
+  const cLower = [], cUpper = [];
+  const tilemap = [];    // 每个格子 5 个数字: z0,z1,z2,z3,shadowBits
+  const shadowPos = [];  // { x, y, bits, isBg }
 
   // 遍历所有 tile 位置
   for (let y = 0; y < h; y++) {
@@ -395,48 +407,65 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
       const tileId2 = readMapData(map.data, w, h, 2, x, y);
       const tileId3 = readMapData(map.data, w, h, 3, x, y);
       const shadowBits = readMapData(map.data, w, h, 4, x, y);
+      const isBg = tileId0 === bgVals[0] && tileId1 === bgVals[1] && tileId2 === bgVals[2] && tileId3 === bgVals[3];
 
-      addTile(tileId0, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
-      addTile(tileId1, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
-      addTile(tileId2, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
-      addTile(tileId3, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
+      const l = isBg ? bgLower : cLower;
+      const u = isBg ? bgUpper : cUpper;
+      addTile(tileId0, dx, dy, l, u, tsNames, tsImgs, flags, 0);
+      addTile(tileId1, dx, dy, l, u, tsNames, tsImgs, flags, 0);
+      addTile(tileId2, dx, dy, l, u, tsNames, tsImgs, flags, 0);
+      addTile(tileId3, dx, dy, l, u, tsNames, tsImgs, flags, 0);
+
+      tilemap.push(tileId0, tileId1, tileId2, tileId3, shadowBits);
+      if (shadowBits & 0x0f) shadowPos.push({ x, y, bits: shadowBits, isBg });
     }
   }
 
-  // 执行所有 lower 绘制
-  for (const c of lowerCmds) {
-    blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, lowerBuf, outW, c.dx, c.dy, c.w, c.h);
-  }
-
-  // 执行所有 upper 绘制
-  for (const c of upperCmds) {
-    blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, upperBuf, outW, c.dx, c.dy, c.w, c.h);
-  }
-
-  // 阴影: 二次遍历, 直接在 lowerBuf 上画
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const shadowBits = readMapData(map.data, w, h, 4, x, y);
-      if (shadowBits & 0x0f) {
-        const dx = x * TILE, dy = y * TILE;
-        for (let i = 0; i < 4; i++) {
-          if (shadowBits & (1 << i)) {
-            blendShadow(lowerBuf, outW, dx + (i % 2) * HALF, dy + Math.floor(i / 2) * HALF, HALF, HALF);
-          }
-        }
+  // 输出前景层（不含背景 tile）
+  if (cLower.length > 0 || cUpper.length > 0) {
+    const cBuf = Buffer.alloc(outW * outH * 4, 0);
+    const cUpperBuf = Buffer.alloc(outW * outH * 4, 0);
+    for (const c of cLower) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, cBuf, outW, c.dx, c.dy, c.w, c.h);
+    for (const c of cUpper) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, cUpperBuf, outW, c.dx, c.dy, c.w, c.h);
+    compositeLayer(cUpperBuf, cBuf, outW * outH * 4);
+    // 前景阴影
+    for (const sp of shadowPos) {
+      if (!sp.isBg) {
+        const sdx = sp.x * TILE, sdy = sp.y * TILE;
+        for (let i = 0; i < 4; i++) { if (sp.bits & (1 << i)) blendShadow(cBuf, outW, sdx + (i % 2) * HALF, sdy + Math.floor(i / 2) * HALF, HALF, HALF); }
       }
     }
+    const outNameC = 'Map' + String(mapId).padStart(4, '0') + '.png';
+    const outPathC = OUT_DIR + '/' + outNameC;
+    await sharp(cBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPathC.replace('.png', '_content.png'));
   }
 
-  // 合成 upper 到 lower
+  // 执行所有 lower 绘制（合拼用）
+  for (const c of bgLower) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, lowerBuf, outW, c.dx, c.dy, c.w, c.h);
+  for (const c of cLower) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, lowerBuf, outW, c.dx, c.dy, c.w, c.h);
+  // 执行所有 upper 绘制（合拼用）
+  for (const c of bgUpper) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, upperBuf, outW, c.dx, c.dy, c.w, c.h);
+  for (const c of cUpper) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, upperBuf, outW, c.dx, c.dy, c.w, c.h);
+
+  // 阴影: 在合拼 lowerBuf 上画
+  for (const sp of shadowPos) {
+    const dx = sp.x * TILE, dy = sp.y * TILE;
+    for (let i = 0; i < 4; i++) {
+      if (sp.bits & (1 << i)) blendShadow(lowerBuf, outW, dx + (i % 2) * HALF, dy + Math.floor(i / 2) * HALF, HALF, HALF);
+    }
+  }
+
+  // 合成 upper 到 lower（合拼）
   compositeLayer(upperBuf, lowerBuf, outW * outH * 4);
 
-  // 输出
+  // 输出合拼 PNG
   const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
   const outPath = OUT_DIR + '/' + outName;
-  await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } })
-    .png()
-    .toFile(outPath);
+  await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
+
+  // 输出 tilemap sidecar
+  const tilemapPath = outPath.replace('.png', '.tilemap.json');
+  fs.writeFileSync(tilemapPath, JSON.stringify({ w, h, data: tilemap }), 'utf8');
 
   const sizeKB = (fs.statSync(outPath).size / 1024).toFixed(0);
   process.stdout.write(`  ${outName}  ${w}×${h} tiles  ${outW}×${outH}px  ${sizeKB}KB\n`);
@@ -500,6 +529,7 @@ async function renderParallaxMap(map, mapId, tilesets) {
 
     const upperBuf = Buffer.alloc(outW * outH * 4, 0);
     const lowerCmds = [], upperCmds = [];
+    const tilemap = [];
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -508,6 +538,13 @@ async function renderParallaxMap(map, mapId, tilesets) {
           const tid = readMapData(map.data, w, h, z, x, y);
           addTile(tid, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
         }
+        // 也收集阴影层
+        const shadowBits = readMapData(map.data, w, h, 4, x, y);
+        const t0 = readMapData(map.data, w, h, 0, x, y);
+        const t1 = readMapData(map.data, w, h, 1, x, y);
+        const t2 = readMapData(map.data, w, h, 2, x, y);
+        const t3 = readMapData(map.data, w, h, 3, x, y);
+        tilemap.push(t0, t1, t2, t3, shadowBits);
       }
     }
 
@@ -517,6 +554,11 @@ async function renderParallaxMap(map, mapId, tilesets) {
 
     const outPath = OUT_DIR + '/' + outName;
     await sharp(bgBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
+
+    // 输出 tilemap sidecar
+    const tilemapPath = outPath.replace('.png', '.tilemap.json');
+    fs.writeFileSync(tilemapPath, JSON.stringify({ w, h, data: tilemap }), 'utf8');
+
     const sizeKB = (fs.statSync(outPath).size / 1024).toFixed(0);
     process.stdout.write(`  ${outName}  parallax+${tilesets[map.tilesetId].name}  ${outW}×${outH}px  ${sizeKB}KB\n`);
   } else {
