@@ -197,7 +197,7 @@ function main() {
   fs.writeFileSync(OUT_FILE, content, 'utf8');
 
   // 同时输出到项目目录（供查看器和 API 服务使用）
-  const gameName = path.basename(GAME_DIR);
+  const gameName = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
   const projTransfers = path.join(__dirname, '..', 'maps', 'projects', gameName, 'transfers_data.js');
   if (fs.existsSync(path.dirname(projTransfers))) {
     fs.writeFileSync(projTransfers, content, 'utf8');
