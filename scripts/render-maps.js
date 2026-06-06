@@ -17,6 +17,28 @@ function readJSON(fp) {
   return JSON.parse(fs.readFileSync(fp, 'utf8').replace(/^﻿/, ''));
 }
 
+// ─── 插件系统 ──────────────────────────────────────────────
+const VALID_HOOKS = ['mapStart', 'mapEnd', 'beforeSprite', 'eventSprite'];
+const PLUGINS = [];
+(function loadPlugins() {
+  const dir = path.join(__dirname, 'plugins');
+  if (!fs.existsSync(dir)) return;
+  fs.readdirSync(dir).filter(f => f.endsWith('.js')).forEach(f => {
+    try {
+      const p = require(path.join(dir, f));
+      if (p && p.name && typeof p.process === 'function') {
+        if (p.hook && !VALID_HOOKS.includes(p.hook)) {
+          console.error('  插件「' + p.name + '」钩子「' + p.hook + '」无效，跳过');
+          return;
+        }
+        PLUGINS.push(p);
+      }
+    } catch (e) {
+      console.error('  插件加载失败:', f, e.message);
+    }
+  });
+})();
+
 // ─── 常量 ───────────────────────────────────────────────────────
 const TILE = 48;
 const HALF = 24;
@@ -41,6 +63,7 @@ const GAME_DIR = (() => {
   if (process.env.GAME_DIR) return process.env.GAME_DIR;
   return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
 })();
+global['PLUGIN_GAME_DIR'] = GAME_DIR;
 
 // 项目目录：按项目名分开放，避免混杂
 const PROJECT_DIR = (() => {
@@ -155,11 +178,17 @@ function blendRect(src, sw, sx, sy, dst, dw, dx, dy, w, h) {
       const di = ((dy + row) * dw + (dx + col)) * 4;
       const sa = src[si + 3];
       if (sa === 0) continue;
-      if (sa === 255 || dst[di + 3] === 0) {
+      if (sa === 255) {
         dst[di]   = src[si];
         dst[di+1] = src[si+1];
         dst[di+2] = src[si+2];
         dst[di+3] = 255;
+      } else if (dst[di + 3] === 0) {
+        // 目标为空时保留源像素的 alpha（不强制 255）
+        dst[di]   = src[si];
+        dst[di+1] = src[si+1];
+        dst[di+2] = src[si+2];
+        dst[di+3] = sa;
       } else {
         const a = sa / 255, ia = 1 - a;
         const da = dst[di+3] / 255;
@@ -312,16 +341,192 @@ function renderAutotile(layer, tileId, dx, dy, tsNames, tsImgs, flags, animFrame
 }
 
 // ─── 添加单个 tile ────────────────────────────────────────────
-function addTile(tileId, dx, dy, lower, upper, tsNames, tsImgs, flags, animFrame) {
+function addTile(tileId, dx, dy, lower, upper, tsNames, tsImgs, flags, animFrame, z) {
   if (!isVis(tileId)) return;
 
-  const isHigher = (flags[tileId] || 0) & 0x10;
+  const f = flags[tileId] || 0;
+  const isHigher = (f & 0x10) || (f & 0x0f) !== 0 || z >= 2;
   const targetLayer = isHigher ? upper : lower;
 
   if (isAuto(tileId)) {
     renderAutotile(targetLayer, tileId, dx, dy, tsNames, tsImgs, flags, animFrame);
   } else {
     renderNormal(targetLayer, tileId, dx, dy, tsNames, tsImgs, flags);
+  }
+}
+
+// ─── 事件精灵渲染（NPC、门、物品）────────────────────────────
+const CHARACTER_IMG_DIR = GAME_DIR + '/img/characters/';
+const sprCache = {};
+
+async function loadSprite(name) {
+  if (sprCache[name]) return sprCache[name];
+  let fp = CHARACTER_IMG_DIR + name + '.png';
+  if (!fs.existsSync(fp)) {
+    fp = CHARACTER_IMG_DIR + name + '.png_';
+    if (!fs.existsSync(fp)) return null;
+  }
+  try {
+    let buf;
+    if (fp.endsWith('.png_')) {
+      buf = fs.readFileSync(fp);
+      const header = Array.from(new Uint8Array(buf.slice(0, 16)));
+      const expected = [0x52,0x50,0x47,0x4d,0x56,0,0,0,0,0x03,0x01,0,0,0,0,0];
+      if (header.every((b, i) => b === expected[i])) {
+        buf = Buffer.from(buf.slice(16));
+        for (let i = 0; i < 16 && i < buf.length; i++) buf[i] ^= ENC_KEY_BYTES[i];
+      }
+    } else {
+      buf = fs.readFileSync(fp);
+    }
+    const meta = await sharp(buf).metadata();
+    const raw = await sharp(buf).ensureAlpha().raw().toBuffer();
+    sprCache[name] = { buf: raw, width: meta.width, height: meta.height };
+    return sprCache[name];
+  } catch (e) {
+    return null;
+  }
+}
+
+// 从精灵图中提取角色帧（标准 3×4 布局或 $ 单人布局）
+function extractSpriteFrame(sheet, name, charIndex, direction, pattern) {
+  const sign = name.match(/^[!$]+/);
+  const has$ = sign && sign[0].includes('$');
+  let frameW, frameH;
+  if (has$) {
+    // $ 前缀：单人图，尺寸自适应
+    frameW = Math.floor(sheet.width / 3);
+    frameH = Math.floor(sheet.height / 4);
+  } else {
+    // 多人图：标准 12 列（4 角色 × 3 帧）× 8 行（2 行角色 × 4 方向）
+    frameW = Math.floor(sheet.width / 12);
+    frameH = Math.floor(sheet.height / 8);
+  }
+  if (frameW < 1 || frameH < 1) return null;
+  const col = (charIndex || 0) % 4;
+  const row = Math.floor((charIndex || 0) / 4);
+  const dirRow = ({2:0, 4:1, 6:2, 8:3}[direction]) || 0;
+  const srcX = (col * 3 + (pattern % 3)) * frameW;
+  const srcY = (row * 4 + dirRow) * frameH;
+  if (srcX + frameW > sheet.width || srcY + frameH > sheet.height) return null;
+  const buf = Buffer.alloc(frameW * frameH * 4, 0);
+  blendRect(sheet.buf, sheet.width, srcX, srcY, buf, frameW, 0, 0, frameW, frameH);
+  return { buf, w: frameW, h: frameH };
+}
+
+// 渲染以 tile 为图形的事件（门、标志等）
+function renderEventTile(buf, outW, tileId, dx, dy, tsNames, tsImgs) {
+  // A2 门/装饰 tile（autotile 但事件只需画完整 48×48 主格）
+  if (isA2(tileId)) {
+    const name = tsNames[1];
+    if (!name || !tsImgs[name]) return false;
+    const kind = Math.floor((tileId - TILE_ID_A1) / 48);
+    const tx = kind % 8;
+    const ty = Math.floor(kind / 8);
+    // A2 每个 autotile 块 96×144px（2×3 格），主格在块内第 2 行第 1 列
+    const sx = tx * 96;
+    const sy = (ty - 2) * 144 + 48;
+    blendRect(tsImgs[name].buf, tsImgs[name].width, sx, sy, buf, outW, dx, dy, TILE, TILE);
+    return true;
+  }
+  // B-E / A5 普通 tile
+  let set = isA5(tileId) ? 4 : 5 + Math.floor(tileId / 256);
+  const name = tsNames[set];
+  if (!name || !tsImgs[name]) return false;
+  const ts = tsImgs[name];
+  let sx, sy;
+  if (isA5(tileId)) {
+    const a5 = tileId - TILE_ID_A5;
+    sx = (a5 % 8) * TILE;
+    sy = Math.floor(a5 / 8) * TILE;
+  } else {
+    sx = ((Math.floor(tileId / 128) % 2) * 8 + (tileId % 8)) * TILE;
+    sy = (Math.floor((tileId % 256) / 8) % 16) * TILE;
+  }
+  blendRect(ts.buf, ts.width, sx, sy, buf, outW, dx, dy, TILE, TILE);
+  return true;
+}
+
+// 迭代地图上的所有事件，渲染初始页（page 0）的精灵
+async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
+  if (!map.events) return 0;
+  let count = 0;
+  for (const eid in map.events) {
+    const ev = map.events[eid];
+    if (!ev || !ev.pages || ev.pages.length === 0) continue;
+    const page = ev.pages[0]; // 默认页（page 0 = 初始状态）
+    if (!page || page.transparent) continue;
+    const img = page.image;
+    if (!img) continue;
+    const dx = ev.x * TILE, dy = ev.y * TILE;
+    if (dx >= outW || dy >= outH) continue;
+    if (img.tileId > 0) {
+      // 用 tileset tile 作图形（门、标志、装饰）
+      if (renderEventTile(buf, outW, img.tileId, dx, dy, tsNames, tsImgs)) count++;
+    } else if (img.characterName && img.characterName.length > 0) {
+      // 运行 beforeSprite 钩子插件（可替换精灵图、修改提取方式）
+      const ctx = {};
+      PLUGINS.filter(p => p.hook === 'beforeSprite').forEach(p => p.process(ev, ctx));
+      // 支持插件替换精灵（如 TemplateEvent 的 <TE:xxx> 替换）
+      var ti = ctx._templateImage;
+      const spriteName = (ti && ti.characterName) || img.characterName;
+      const spriteIdx = (ti && ti.characterName) ? (ti.characterIndex || 0) : (img.characterIndex || 0);
+      const spriteDir = (ti && ti.characterName) ? (ti.direction || 2) : (img.direction || 2);
+      const spritePat = (ti && ti.characterName) ? (ti.pattern || 1) : (img.pattern || 1);
+      // 角色精灵（NPC、角色事件、物品图标）
+      const sheet = await loadSprite(spriteName);
+      if (!sheet) continue;
+      let frame;
+      if (ctx._flatGrid) {
+        var fw = Math.floor(sheet.width / 12), fh = Math.floor(sheet.height / 8);
+        var sx = (spriteIdx % 12) * fw, sy = Math.floor(spriteIdx / 12) * fh;
+        var fbuf = Buffer.alloc(fw * fh * 4, 0);
+        blendRect(sheet.buf, sheet.width, sx, sy, fbuf, fw, 0, 0, fw, fh);
+        frame = { buf: fbuf, w: fw, h: fh };
+      } else {
+        frame = extractSpriteFrame(sheet, spriteName,
+          spriteIdx, spriteDir, spritePat);
+      }
+      if (!frame) continue;
+      // 运行 eventSprite 钩子插件（可修改 ctx.shiftX/Y 等）
+      PLUGINS.filter(p => p.hook === 'eventSprite').forEach(p => p.process(ev, ctx));
+      // 锚点 (0.5, 1.0)：水平居中 + 底部对齐 + 插件偏移
+      const offX = Math.max(0, frame.w - TILE) / 2;
+      const offY = Math.max(0, frame.h - TILE);
+      blendRect(frame.buf, frame.w, 0, 0, buf, outW,
+        dx - offX + (ctx.shiftX || 0), dy - offY + (ctx.shiftY || 0), frame.w, frame.h);
+      count++;
+    }
+  }
+  return count;
+}
+
+// ─── 插件标签扫描 ────────────────────────────────────────────
+function scanPluginTags(map) {
+  if (!map.events) return;
+  const found = {};
+  const pluginTags = {};
+
+  PLUGINS.forEach(p => {
+    if (p.tags) p.tags.forEach(t => { pluginTags[t] = p.name; });
+  });
+
+  for (const eid in map.events) {
+    const ev = map.events[eid];
+    if (!ev || !ev.note) continue;
+    const rx = /<([A-Za-z0-9_　-鿿]+)[:\s>]/g;
+    let m;
+    while ((m = rx.exec(ev.note)) !== null) {
+      const tag = m[1];
+      if (!found[tag]) found[tag] = { events: [], plugin: pluginTags[tag] || null };
+      if (!found[tag].events.includes(parseInt(eid))) found[tag].events.push(parseInt(eid));
+    }
+  }
+
+  if (Object.keys(found).length === 0) return;
+  for (const [tag, info] of Object.entries(found)) {
+    const label = info.plugin ? '✓ ' + info.plugin : '? 未知';
+    console.log(`    ${label} <${tag}> 事件 ${info.events.join(',')}`);
   }
 }
 
@@ -339,6 +544,9 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     console.log(`[${mapId}] ✗ 无数据`);
     return false;
   }
+
+  // 扫描事件 note 中的插件标签
+  scanPluginTags(map);
 
   // 视差图处理：若地图有 parallax 且无 tile，直接用视差图
   if (map.parallaxName && map.parallaxName.length > 0) {
@@ -419,33 +627,14 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 
       const l = isBg ? bgLower : cLower;
       const u = isBg ? bgUpper : cUpper;
-      addTile(tileId0, dx, dy, l, u, tsNames, tsImgs, flags, 0);
-      addTile(tileId1, dx, dy, l, u, tsNames, tsImgs, flags, 0);
-      addTile(tileId2, dx, dy, l, u, tsNames, tsImgs, flags, 0);
-      addTile(tileId3, dx, dy, l, u, tsNames, tsImgs, flags, 0);
+      addTile(tileId0, dx, dy, l, u, tsNames, tsImgs, flags, 0, 0);
+      addTile(tileId1, dx, dy, l, u, tsNames, tsImgs, flags, 0, 1);
+      addTile(tileId2, dx, dy, l, u, tsNames, tsImgs, flags, 0, 2);
+      addTile(tileId3, dx, dy, l, u, tsNames, tsImgs, flags, 0, 3);
 
       tilemap.push(tileId0, tileId1, tileId2, tileId3, shadowBits);
       if (shadowBits & 0x0f) shadowPos.push({ x, y, bits: shadowBits, isBg });
     }
-  }
-
-  // 输出前景层（不含背景 tile）
-  if (cLower.length > 0 || cUpper.length > 0) {
-    const cBuf = Buffer.alloc(outW * outH * 4, 0);
-    const cUpperBuf = Buffer.alloc(outW * outH * 4, 0);
-    for (const c of cLower) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, cBuf, outW, c.dx, c.dy, c.w, c.h);
-    for (const c of cUpper) blendRect(c.ts.buf, c.ts.width, c.sx, c.sy, cUpperBuf, outW, c.dx, c.dy, c.w, c.h);
-    compositeLayer(cUpperBuf, cBuf, outW * outH * 4);
-    // 前景阴影
-    for (const sp of shadowPos) {
-      if (!sp.isBg) {
-        const sdx = sp.x * TILE, sdy = sp.y * TILE;
-        for (let i = 0; i < 4; i++) { if (sp.bits & (1 << i)) blendShadow(cBuf, outW, sdx + (i % 2) * HALF, sdy + Math.floor(i / 2) * HALF, HALF, HALF); }
-      }
-    }
-    const outNameC = 'Map' + String(mapId).padStart(4, '0') + '.png';
-    const outPathC = OUT_DIR + '/' + outNameC;
-    await sharp(cBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPathC.replace('.png', '_content.png'));
   }
 
   // 执行所有 lower 绘制（合拼用）
@@ -465,6 +654,10 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 
   // 合成 upper 到 lower（合拼）
   compositeLayer(upperBuf, lowerBuf, outW * outH * 4);
+
+  // 事件精灵（NPC、门、物品）叠加到合拼图
+  var evCount = await renderEvents(lowerBuf, outW, outH, map, tsNames, tsImgs);
+  if (evCount > 0) process.stdout.write(`    ${evCount} 个事件精灵已渲染\n`);
 
   // 输出合拼 PNG
   const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
@@ -544,7 +737,7 @@ async function renderParallaxMap(map, mapId, tilesets) {
         const dx = x * TILE, dy = y * TILE;
         for (let z = 0; z < 4; z++) {
           const tid = readMapData(map.data, w, h, z, x, y);
-          addTile(tid, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0);
+          addTile(tid, dx, dy, lowerCmds, upperCmds, tsNames, tsImgs, flags, 0, z);
         }
         // 也收集阴影层
         const shadowBits = readMapData(map.data, w, h, 4, x, y);

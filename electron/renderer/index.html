@@ -61,6 +61,8 @@ header .right { margin-left: auto; }
 .btn-del { background: #5a3a3a; color: #c88; }
 .btn-del:hover { background: #6a4a4a; }
 
+@keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+
 .log-panel {
   border-top: 1px solid #333; background: #111;
   padding: 10px 16px; max-height: 160px; overflow-y: auto;
@@ -110,7 +112,7 @@ function createProjectCard(p) {
   card.innerHTML = `
     <div class="head">
       <h2 class="proj-title" style="cursor:pointer;color:#7a7;">📁 ${p.name}</h2>
-      <span class="status">tileset ${p.tilesets} 张 · 地图 ${p.maps} 张 ${p.hasTransfers ? "📌" : ""}</span>
+      <span class="status">tileset ${p.tilesets} 张 · 地图 ${p.maps} 张 ${p.hasTransfers ? "📌" : ""} ${p.hasTilemaps ? "🗺️" : ""}</span>
     </div>
     <div class="stats">
       <span>Tileset: <strong id="tsCount_${p.name}">${p.tilesets}</strong></span>
@@ -202,6 +204,10 @@ async function runAll(projectName) {
   } else {
     log(`✗ tileset 导出失败，跳过渲染`, 'err');
   }
+  log(`▶ 开始提取传送点...`, 'info');
+  const r3 = await electronAPI.runScript('transfers', gameDir);
+  log(`✔ 传送点提取完成 (ok=${r3.ok})`, r3.ok ? 'done' : 'err');
+
   refreshList();
   document.getElementById('statusBar').textContent = '全流程完成';
   log(`✅ 全流程完成`, 'done');
@@ -258,6 +264,138 @@ electronAPI.onScriptDone(data => {
 // ─── 初始 ─────────────────────────────────────────────────────
 log('应用已启动', 'info');
 refreshList();
+
+// ─── 插件菜单 ─────────────────────────────────────────────────
+electronAPI.onPluginOpen(async () => {
+  document.getElementById('pluginModal').style.display = 'block';
+  document.getElementById('pluginList').innerHTML = '<div style="color:#666;font-style:italic;padding:8px;">加载中...</div>';
+  try {
+    const list = await electronAPI.getPlugins();
+    renderPluginList(list);
+  } catch (e) {
+    document.getElementById('pluginList').innerHTML = '<div style="color:#c55;padding:8px;">加载失败: ' + e.message + '</div>';
+  }
+});
+electronAPI.onPluginHelp(() => {
+  document.getElementById('pluginHelpModal').style.display = 'block';
+});
+
+function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+var _pluginList = [];
+
+function togglePlugin(input) {
+  var c = input.checked, card = input.closest('.plugin-card');
+  var name = card.getAttribute('data-name');
+  localStorage.setItem('plugin_' + name, c);
+  card.style.borderLeftColor = c ? '#4a8bc2' : '#444';
+  input.nextElementSibling.style.background = c ? '#4a8bc2' : '#444';
+  input.nextElementSibling.nextElementSibling.style.left = c ? '20px' : '2px';
+}
+
+function renderPluginList(list) {
+  if (list) _pluginList = list;
+  var items = _pluginList;
+  if (!items || items.length === 0) {
+    document.getElementById('pluginList').innerHTML = '<div style="color:#888;padding:8px;text-align:center;">暂无插件<br><span style="font-size:11px;">插件文件放在 scripts/plugins/ 目录下</span></div>';
+    return;
+  }
+  var html = '';
+  items.forEach(function(p) {
+    var enabled = localStorage.getItem('plugin_' + p.name) !== 'false';
+    var tags = p.tags && p.tags.length ? p.tags.join(', ') : '-';
+    var safeName = esc(p.name);
+    html += '<div class="plugin-card" data-name="' + safeName + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;background:#2a2a2a;border-radius:8px;border-left:3px solid ' + (enabled ? '#4a8bc2' : '#444') + ';">';
+    html += '  <div style="flex:1;min-width:0;">';
+    html += '    <div style="display:flex;align-items:center;gap:6px;">';
+    html += '      <span style="color:#ddd;font-size:13px;font-weight:500;">' + safeName + '</span>';
+    html += '      <span style="color:#666;font-size:10px;background:#1e1e1e;padding:1px 6px;border-radius:4px;font-family:monospace;">' + esc(p.hook) + '</span>';
+    html += '    </div>';
+    html += '    <div style="color:#999;font-size:12px;margin-top:1px;">' + esc(p.description || '无描述') + '</div>';
+    html += '    <div style="color:#666;font-size:10px;margin-top:2px;">标签: ' + esc(tags) + '</div>';
+    html += '  </div>';
+    html += '  <label class="plugin-toggle" style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;cursor:pointer;">';
+    html += '    <input type="checkbox" ' + (enabled ? 'checked' : '') + ' style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;" onchange="togglePlugin(this)">';
+    html += '    <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + (enabled ? '#4a8bc2' : '#444') + ';border-radius:11px;transition:.2s;pointer-events:none;"></span>';
+    html += '    <span style="position:absolute;top:2px;left:' + (enabled ? '20px' : '2px') + ';width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>';
+    html += '  </label>';
+    html += '</div>';
+  });
+  document.getElementById('pluginList').innerHTML = html;
+}
+
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#ccc;padding:8px 16px;border-radius:6px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.4);animation:fadeIn .2s;';
+  document.body.appendChild(t);
+  setTimeout(function() { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){t.remove()},300); }, 2000);
+}
+
+async function importPlugin() {
+  try {
+    var result = await electronAPI.importPlugin();
+    if (!result) return;
+    if (result.duplicate) { showToast('插件「' + result.file + '」已存在'); return; }
+    if (result.success) {
+      showToast('插件「' + result.file + '」导入成功');
+      var list = await electronAPI.getPlugins();
+      renderPluginList(list);
+    } else {
+      showToast('导入失败: ' + (result.error || '未知错误'));
+    }
+  } catch(e) { showToast('导入出错: ' + e.message); }
+}
 </script>
+
+<!-- 插件管理弹窗 -->
+<div id="pluginModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);">
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#222;border:1px solid #444;border-radius:12px;padding:24px;width:520px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    <h2 style="color:#ddd;font-size:16px;margin-bottom:16px;">🧩 插件管理</h2>
+    <div style="color:#888;padding:12px;background:#2a2a2a;border-radius:6px;margin-bottom:12px;font-size:13px;">
+      插件由 <code style="background:#1a1a1a;padding:1px 6px;border-radius:3px;color:#8c8;">scripts/plugins/</code> 目录下的 JS 文件定义，渲染地图时自动加载。
+    </div>
+    <div id="pluginList" style="margin-bottom:16px;max-height:300px;overflow-y:auto;">
+      <div style="color:#666;font-style:italic;padding:8px;">加载中...</div>
+    </div>
+    <div style="display:flex;gap:8px;border-top:1px solid #333;padding-top:12px;">
+      <button onclick="importPlugin()" style="flex:1;padding:6px 0;background:#3a5a3a;border:none;border-radius:6px;color:#aca;cursor:pointer;font-size:13px;">📥 导入插件</button>
+      <button onclick="document.getElementById('pluginHelpModal').style.display='block'" style="flex:1;padding:6px 0;background:#3a3a5a;border:none;border-radius:6px;color:#aac;cursor:pointer;font-size:13px;">📖 帮助</button>
+      <button id="pluginCloseBtn" onclick="document.getElementById('pluginModal').style.display='none'" style="flex:1;padding:6px 0;background:#3a3a3a;border:none;border-radius:6px;color:#aaa;cursor:pointer;font-size:13px;">✕ 关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 插件帮助弹窗 -->
+<div id="pluginHelpModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);">
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#1e1e1e;border:1px solid #444;border-radius:12px;padding:24px;width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);color:#ccc;font-size:13px;line-height:1.6;">
+    <h2 style="color:#ddd;font-size:16px;margin-bottom:12px;">📖 插件开发指南</h2>
+    <p>插件是放在 <code style="background:#2a2a2a;padding:1px 6px;border-radius:3px;color:#8c8;">scripts/plugins/</code> 目录下的独立 JS 文件：</p>
+    <pre style="background:#2a2a2a;padding:12px;border-radius:6px;margin:10px 0;font:11px/1.5 monospace;color:#8c8;overflow-x:auto;">
+module.exports = {
+  name: 'MyPlugin',
+  description: '说明文字',
+  hook: 'eventSprite',
+  tags: ['MY_TAG'],
+  process: function(ev, ctx) {
+    var m = ev.note.match(/<MY_TAG:A,\s*([-\d]+),\s*([-\d]+)\s*>/);
+    if (m) {
+      ctx.shiftX = (ctx.shiftX || 0) + (parseInt(m[1], 10) || 0);
+      ctx.shiftY = (ctx.shiftY || 0) + (parseInt(m[2], 10) || 0);
+    }
+  }
+};</pre>
+    <h3 style="color:#ddd;font-size:14px;margin-top:14px;">可用的钩子（hook）</h3>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;">
+      <tr><td style="padding:4px 8px;background:#2a2a2a;color:#aac;font-family:monospace;">eventSprite</td><td style="padding:4px 8px;">渲染事件精灵时调用，可修改偏移量</td></tr>
+    </table>
+    <h3 style="color:#ddd;font-size:14px;margin-top:14px;">测试插件</h3>
+    <p>将插件放入目录后运行渲染命令：</p>
+    <pre style="background:#2a2a2a;padding:8px;border-radius:4px;font:11px monospace;color:#8c8;">
+node scripts/render-maps.js "游戏目录" 地图ID</pre>
+    <button id="pluginHelpCloseBtn" onclick="document.getElementById('pluginHelpModal').style.display='none'" style="margin-top:12px;padding:6px 20px;background:#3a3a3a;border:none;border-radius:6px;color:#aaa;cursor:pointer;font-size:13px;">✕ 关闭</button>
+  </div>
+</div>
+
 </body>
 </html>

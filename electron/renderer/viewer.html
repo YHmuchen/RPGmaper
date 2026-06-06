@@ -8,23 +8,46 @@
 body { background: #1a1a1a; color: #ccc; font: 14px/1.4 sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 .toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #222; border-bottom: 1px solid #333; flex-shrink: 0; flex-wrap: wrap; }
 .toolbar label { color: #999; font-size: 13px; }
-.toolbar select { background:#333;border:1px solid #444;color:#ccc;padding:3px 6px;border-radius:3px; }
-.toolbar button { padding: 4px 14px; border: none; border-radius: 3px; cursor: pointer; font-size: 13px; background: #3a6ea5; color: #fff; }
+.toolbar select { background:#333; border:1px solid #444; color:#ccc; padding:3px 6px; border-radius:4px; outline:none; }
+.toolbar select:focus { border-color:#4a8bc2; }
+.toolbar button { padding: 4px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; background: #3a6ea5; color: #fff; transition: background .12s; }
 .toolbar button:hover { background: #4a7eb5; }
-.toolbar input[type=number] { width: 50px; padding: 3px 6px; background: #333; border: 1px solid #444; color: #ccc; border-radius: 3px; }
-.toolbar input[type=checkbox] { margin: 0; }
+.toolbar input[type=number] { width: 50px; padding: 3px 6px; background: #333; border: 1px solid #444; color: #ccc; border-radius: 4px; }
+.toolbar input[type=checkbox] { margin: 0; accent-color:#4a8bc2; }
 .toolbar .info { margin-left: auto; color: #888; font-size: 12px; }
 .container { flex: 1; overflow: hidden; position: relative; display: flex; }
-.scroll-area { flex: 1; overflow: auto; position: relative; }
+.scroll-area { flex: 1; overflow: hidden; position: relative; }
 .canvas-wrap { position: relative; transform-origin: 0 0; }
 canvas { display: block; position: absolute; top: 0; left: 0; }
-.sidebar { width: 260px; background: #222; border-left: 1px solid #333; padding: 12px; overflow-y: auto; flex-shrink: 0; font-size: 12px; }
-.sidebar h3 { color: #999; margin-bottom: 8px; font-size: 13px; }
-.sidebar .sel-list { list-style: none; }
-.sidebar .sel-list li { padding: 2px 6px; margin: 1px 0; background: #2a2a2a; border-radius: 2px; display: flex; justify-content: space-between; cursor: pointer; }
-.sidebar .sel-list li:hover { background: #333; }
-.sidebar .sel-list li .del { color: #c55; cursor: pointer; }
-.sidebar .status { color: #666; font-style: italic; }
+.sidebar { width: 300px; background: #222; display: flex; flex-direction: column; border-left: 1px solid #333; }
+.sidebar-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; }
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #555; }
+.sidebar-section { margin-bottom: 16px; }
+.sidebar-section h3 { color: #888; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; padding: 0 2px; }
+.sel-list { list-style: none; display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; }
+.sel-list::-webkit-scrollbar { width: 4px; }
+.sel-list::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+.sel-list li { padding: 5px 8px 5px 10px; background: #2a2a2a; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-left: 2px solid #4a8bc2; transition: background .1s; }
+.sel-list li:hover { background: #303030; }
+.sel-list li .coord { color: #ddd; font-size: 12px; }
+.sel-list li .coord .map-tag { color: #777; font-size: 10px; margin-left: 4px; }
+.sel-list li .del { color: #555; cursor: pointer; font-size: 11px; padding: 0 5px; border-radius: 3px; transition: color .1s; line-height: 1.6; }
+.sel-list li .del:hover { color: #e06060; }
+.sidebar-status { color: #666; font-style: italic; font-size: 11px; padding: 2px 4px; }
+.ops-card { background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ops-card button { width: 100%; padding: 7px 0; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; transition: background .12s, color .12s; }
+.ops-card .btn-primary { background: #3a6ea5; color: #fff; }
+.ops-card .btn-primary:hover { background: #4a7eb5; }
+.ops-card .btn-ghost { background: transparent; color: #888; border: 1px solid #2a2a2a; }
+.ops-card .btn-ghost:hover { background: #2a2a2a; color: #aaa; }
+.ops-card textarea { width: 100%; height: 52px; background: #1a1a1a; border: 1px solid #2a2a2a; color: #7a7; padding: 5px 6px; font: 10px/1.4 monospace; border-radius: 4px; resize: vertical; outline: none; }
+.ops-card textarea:focus { border-color: #4a8bc2; }
+#transferList { font-size: 11px; }
+#transferList > div { margin-bottom: 4px; }
+#statusExtra { color: #555; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -39,12 +62,9 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   <input type="checkbox" id="showGrid" checked>
   <label>标签</label>
   <input type="checkbox" id="showLabels">
-  <button id="fitContent" style="background:#5a5a3a;">⊞ 适配内容</button>
-  <label>背景</label>
-  <input type="checkbox" id="showBg" checked>
   <span>缩放: <span id="zoomLevel">100</span>%</span>
   <button id="zoomFit" style="background:#3a5a3a;font-size:11px;padding:2px 8px;">⌂ 居中</button>
-  <button id="clearSel">清空选择</button>
+  <button id="pluginBtn" style="background:#4a3a5a;font-size:11px;padding:2px 10px;">🧩 插件</button>
   <span class="info" id="status">就绪</span>
 </div>
 
@@ -56,19 +76,29 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
     </div>
   </div>
   <div class="sidebar">
-    <h3>已选择的格子</h3>
-    <ul class="sel-list" id="selList"></ul>
-    <p class="status" id="selStatus">点击地图选择格子</p>
-    <hr style="border-color:#333;margin:12px 0;">
-    <h3>操作</h3>
-    <button id="saveBtn" style="width:100%;margin-bottom:6px;">下载 selections.json</button>
-    <button id="copyBtn" style="width:100%;margin-bottom:6px;">复制到剪贴板</button>
-    <textarea id="jsonPreview" readonly style="width:100%;height:80px;background:#2a2a2a;border:1px solid #444;color:#8c8;padding:4px;font:11px monospace;border-radius:3px;resize:vertical;" placeholder="选择格子后点复制"></textarea>
-    <hr style="border-color:#333;margin:12px 0;">
-    <h3>传送点管理</h3>
-    <button id="exportTransferBtn" style="width:100%;">导出全部传送数据</button>
-    <hr style="border-color:#333;margin:12px 0;">
-    <p style="color:#555;font-size:11px;" id="statusExtra"></p>
+    <div class="sidebar-scroll">
+      <div class="sidebar-section">
+        <h3>已选择的格子</h3>
+        <ul class="sel-list" id="selList"></ul>
+        <p class="sidebar-status" id="selStatus">点击地图选择格子</p>
+      </div>
+      <div class="sidebar-section">
+        <h3>操作</h3>
+        <div class="ops-card">
+          <button id="clearSel" class="btn-ghost" style="margin-bottom:2px;">清空选择</button>
+          <button id="copyBtn" class="btn-primary">复制到剪贴板</button>
+          <textarea id="jsonPreview" readonly placeholder="选择格子后点复制"></textarea>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h3>传送点列表
+          <span id="transferCount" style="color:#666;font-size:10px;"></span>
+          <button id="backBtn" style="display:none;margin-left:6px;padding:1px 6px;background:#3a3a5a;border:none;color:#aac;border-radius:3px;cursor:pointer;font-size:10px;vertical-align:middle;">← 返回</button>
+        </h3>
+        <div id="transferList"></div>
+      </div>
+      <p id="statusExtra"></p>
+    </div>
   </div>
 </div>
 
@@ -88,13 +118,15 @@ const gctx = gridCanvas.getContext('2d');
 const wrap = document.getElementById('canvasWrap');
 
 let img = new Image();
-let zoom = 1;
+let zoom = 1, viewX = 0, viewY = 0;
 let selections = [];
 let tilemap = null;  // { w, h, data: [z0,z1,z2,z3,s, …] }
 let MAP_LIST = [];
 let PARALLAX_MAPS = {};
 let TRANSFERS = {};
+let TILEMAPS_ALL = {};
 let _entrySource = null;
+let MAP_NAMES = {};
  // { fromMap, fromFx, fromFy, toMap, toTx, toTy }
 let _skipSelectChange = false;
 
@@ -124,7 +156,15 @@ async function loadData() {
     if (transfersJS) {
       var m = transfersJS.match(/var TRANSFERS_ALL = ([\s\S]*?);/);
       if (m) TRANSFERS = JSON.parse(m[1]);
+      var n = transfersJS.match(/var MAP_NAMES = ([\s\S]*?);/);
+      if (n) MAP_NAMES = JSON.parse(n[1]);
     }
+  } catch(e) {}
+
+  // 加载 tilemap 数据（优先 tilemaps_data.js，备选异步单文件）
+  try {
+    var tmapJS = await electronAPI.readDataFile(PROJECT_DIR + '/maps/tilemaps_data.js');
+    if (tmapJS) { var tm = tmapJS.match(/var TILEMAPS_ALL = ([\s\S]*?);/); if (tm) TILEMAPS_ALL = JSON.parse(tm[1]); }
   } catch(e) {}
 
   // 加载视差图
@@ -155,24 +195,43 @@ function resolveMapPath(mapId) {
   return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '.png';
 }
 
+// 地图导航历史 & 传送点高亮
+var _prevMapId = null;
+var _activeTransfer = null;
+var _backEntry = null;
+
 function loadMap(mapId, entrySource) {
   mapId = Number(mapId);
+  // 重置缩放为 100%，避免跨图残留
+  zoom = 1;
+  // 保存上一张地图，用于返回
+  var cur = window._currentMapId ? Number(window._currentMapId) : null;
+  if (cur && cur !== mapId && !entrySource) {
+    // 来自下拉框切换时也保存
+    _prevMapId = cur;
+  } else if (cur && cur !== mapId && entrySource) {
+    // 来自传送跳转，保存来源地图
+    _prevMapId = cur;
+  }
+  var backBtn = document.getElementById('backBtn');
+  if (backBtn) backBtn.style.display = (_prevMapId !== null && mapId !== _prevMapId) ? 'inline-block' : 'none';
   _entrySource = entrySource || null;
+  // 切地图时重置内容边界
   _cropBounds = null;
-  _contentImg = null;
-  _contentLoaded = false;
+  _cropBounds = null;
   const path = resolveMapPath(mapId);
   const pad = String(mapId).padStart(4, '0');
 
-  // 加载 tilemap sidecar
-  tilemap = null;
-  const tilemapPath = PROJECT_DIR + '/maps/Map' + pad + '.tilemap.json';
-  electronAPI.readDataFile(tilemapPath).then(function(data) {
-    if (data) { try { tilemap = JSON.parse(data); } catch(e) {} }
-    // tilemap 加载完成后自动适配内容
-    // tilemap 就绪后重绘网格（裁剪遮罩会自动显示）
-    if (imgLoaded) { drawGrid(); setTimeout(function() { enableCrop(); }, 0); }
-  }).catch(function() {});
+  // 从同步加载的 tilemaps_data.js 中读取 tilemap
+  tilemap = typeof TILEMAPS_ALL === 'object' && TILEMAPS_ALL ? TILEMAPS_ALL[mapId] : null;
+  if (!tilemap) {
+    // 回退：异步加载单个 tilemap 文件
+    const tilemapPath = PROJECT_DIR + '/maps/Map' + pad + '.tilemap.json';
+    electronAPI.readDataFile(tilemapPath).then(function(data) {
+      if (data) { try { tilemap = JSON.parse(data); } catch(e) {} }
+      if (imgLoaded) { drawGrid(); setTimeout(function() { enableCrop(); zoomToCrop(); }, 0); }
+    }).catch(function() {});
+  }
 
   img.onerror = function() {
     document.getElementById('status').textContent = '地图 ' + mapId + ' 不存在，请先生成地图数据';
@@ -185,10 +244,21 @@ function loadMap(mapId, entrySource) {
     gridCanvas.height = img.height;
     drawMap();
     drawGrid();
-    applyZoom();
+    wrap.style.width = img.width + 'px';
+    wrap.style.height = img.height + 'px';
+    // 先同步居中（立即生效）
+    const area = document.getElementById('scrollArea');
+    viewX = (area.clientWidth - img.width * zoom) / 2;
+    viewY = (area.clientHeight - img.height * zoom) / 2;
+    updateTransform();
+    renderTransferList();
     imgLoaded = true;
     var tw = tilemap ? tilemap.w + '×' + tilemap.h + '格' : '';
-    setTimeout(function() { enableCrop(); }, 0);
+    // 再异步裁剪+适配内容区域（如有 tilemap）
+    setTimeout(function() {
+      enableCrop();
+      zoomToCrop();
+    }, 0);
     document.getElementById('status').textContent = img.width + '×' + img.height + 'px' + (tw ? ' ' + tw : '');
   };
   img.src = path;
@@ -196,8 +266,17 @@ function loadMap(mapId, entrySource) {
     window._currentMapId = mapId;
     drawMap();
     drawGrid();
-    applyZoom();
-    setTimeout(function() { enableCrop(); }, 50);
+    wrap.style.width = img.width + 'px';
+    wrap.style.height = img.height + 'px';
+    const area = document.getElementById('scrollArea');
+    viewX = (area.clientWidth - img.width * zoom) / 2;
+    viewY = (area.clientHeight - img.height * zoom) / 2;
+    updateTransform();
+    renderTransferList();
+    setTimeout(function() {
+      enableCrop();
+      zoomToCrop();
+    }, 0);
   }
 }
 
@@ -212,25 +291,6 @@ function drawMap() { ctx.drawImage(img, 0, 0); }
 
 function drawGrid() {
   gctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-
-  // 裁剪遮罩：仅盖掉「均匀边缘」以外的背景 tile，不碰内容区域内部
-  if (_cropActive && tilemap) {
-    var d = tilemap.data, tw = tilemap.w, th = tilemap.h;
-    if (tw > 0 && th > 0 && _cropBounds) {
-      gctx.fillStyle = '#1a1a1a';
-      for (var gy = 0; gy < th; gy++) {
-        for (var gx = 0; gx < tw; gx++) {
-          // 只处理内容边界以外的 tile
-          if (gx >= _cropBounds.minX && gx <= _cropBounds.maxX && gy >= _cropBounds.minY && gy <= _cropBounds.maxY) continue;
-          // 判断是否等于背景 tile
-          var gi = (gy * tw + gx) * 5;
-          if (_bgVals && d[gi] === _bgVals[0] && d[gi+1] === _bgVals[1] && d[gi+2] === _bgVals[2] && d[gi+3] === _bgVals[3] && d[gi+4] === _bgVals[4]) {
-            gctx.fillRect(gx * 48, gy * 48, 48, 48);
-          }
-        }
-      }
-    }
-  }
 
   // 传送点（独立于网格开关）
   const mid = window._currentMapId;
@@ -248,13 +308,18 @@ function drawGrid() {
         const first = trs[0];
         const px = first.fx * TILE, py = first.fy * TILE;
         const isPureCE = trs.every(t => t.source && t.source.indexOf('commonEvent') === 0);
-        // 匹配回头传送点：tid=来源地图 且传送点位置在落点±2格内
+        // 匹配回头传送点：tid 指向来源地图即为回头路（不限定位置）
         const isEntry = _entrySource && Number(_entrySource.toMap) === Number(mid)
-          && trs.some(t => Number(t.tid) === Number(_entrySource.fromMap)
-            && Math.abs(Number(t.fx) - Number(_entrySource.toTx)) <= 2
-            && Math.abs(Number(t.fy) - Number(_entrySource.toTy)) <= 2);
+          && trs.some(t => Number(t.tid) === Number(_entrySource.fromMap));
+        // 活跃的传送点高亮（定位源触发）
+        var isActive = _activeTransfer && first.fx === _activeTransfer.fx && first.fy === _activeTransfer.fy;
         let textColor;
-        if (isEntry) {
+        if (isActive) {
+          gctx.fillStyle = 'rgba(255,160,0,0.6)';
+          gctx.strokeStyle = '#ff8800';
+          gctx.lineWidth = 3;
+          textColor = '#ff8800';
+        } else if (isEntry) {
           // 黄 = 可回到来源地图的传送点
           gctx.fillStyle = 'rgba(255,200,0,0.5)';
           gctx.strokeStyle = 'rgba(255,200,0,0.9)';
@@ -272,11 +337,18 @@ function drawGrid() {
         }
         gctx.fillRect(px, py, TILE, TILE);
         gctx.strokeRect(px, py, TILE, TILE);
-        const tids = [...new Set(trs.map(t => 'Map' + t.tid))];
-        if (isEntry) tids.unshift('◀');
+        const mids = [...new Set(trs.map(t => t.tid))];
+        var label = MAP_NAMES[mids[0]] || ('M' + mids[0]);
+        if (mids.length > 1) label += '+' + (mids.length - 1);
+        if (isEntry) label = '◀ ' + label;
         gctx.fillStyle = textColor;
         gctx.font = 'bold 9px sans-serif';
-        gctx.fillText(tids.join('/'), px + 2, py + 10);
+        var maxW = 44;
+        if (gctx.measureText(label).width > maxW) {
+          while (gctx.measureText(label + '…').width > maxW && label.length > 1) label = label.slice(0, -1);
+          label += '…';
+        }
+        gctx.fillText(label, px + 2, py + 10);
       }
     }
   }
@@ -308,12 +380,23 @@ function drawGrid() {
   }
 }
 
-function applyZoom() {
+function updateTransform() {
   const z = Math.max(0.05, Math.min(10, zoom));
-  wrap.style.transform = 'scale(' + z + ')';
-  wrap.style.width = (img.width || 1) + 'px';
-  wrap.style.height = (img.height || 1) + 'px';
+  wrap.style.transform = 'translate(' + viewX.toFixed(1) + 'px, ' + viewY.toFixed(1) + 'px) scale(' + z + ')';
   document.getElementById('zoomLevel').textContent = Math.round(z * 100);
+}
+
+function zoomAtCursor(clientX, clientY, factor) {
+  const area = document.getElementById('scrollArea');
+  const rect = area.getBoundingClientRect();
+  const mx = clientX - rect.left;
+  const my = clientY - rect.top;
+  const oldZ = zoom;
+  zoom = Math.max(0.05, Math.min(10, zoom * factor));
+  const ratio = zoom / oldZ;
+  viewX = mx - (mx - viewX) * ratio;
+  viewY = my - (my - viewY) * ratio;
+  updateTransform();
 }
 
 // ─── 交互 ─────────────────────────────────────────────────────
@@ -329,6 +412,9 @@ gridCanvas.addEventListener('click', function(e) {
     const key = tx + ',' + ty;
     const trs = window._currentTransfers && window._currentTransfers[key];
     if (trs && trs.length > 0) {
+      // 保存返回入口信息
+      var clickedTr = trs[0];
+      _backEntry = { fromMap: Number(clickedTr.tid), toMap: Number(mid), toTx: clickedTr.fx, toTy: clickedTr.fy, fromTx: clickedTr.tx, fromTy: clickedTr.ty };
       if (trs.length === 1) {
         loadMap(trs[0].tid, { fromMap: Number(mid), fromFx: Number(tx), fromFy: Number(ty), toMap: Number(trs[0].tid), toTx: Number(trs[0].tx), toTy: Number(trs[0].ty) });
         _skipSelectChange = true;
@@ -337,6 +423,7 @@ gridCanvas.addEventListener('click', function(e) {
       } else {
         showTransferMenu(trs, tr => {
           loadMap(tr.tid, { fromMap: Number(mid), fromFx: Number(tx), fromFy: Number(ty), toMap: Number(tr.tid), toTx: Number(tr.tx), toTy: Number(tr.ty) });
+          _backEntry = { fromMap: Number(tr.tid), toMap: Number(mid), toTx: Number(tx), toTy: Number(ty), fromTx: Number(tr.tx), fromTy: Number(tr.ty) };
           _skipSelectChange = true;
           document.getElementById('mapSelect').value = String(tr.tid);
           setTimeout(function() { _skipSelectChange = false; }, 0);
@@ -363,11 +450,13 @@ function showTransferMenu(trs, callback) {
   title.style.cssText = 'color:#999;font-size:12px;margin-bottom:6px;';
   menu.appendChild(title);
   trs.forEach(tr => {
+    const isReturn = _entrySource && Number(tr.tid) === Number(_entrySource.fromMap);
     const item = document.createElement('div');
-    item.style.cssText = 'padding:6px 10px;margin:2px 0;background:#333;border-radius:4px;cursor:pointer;color:#ccc;font-size:13px;';
-    item.textContent = '→ Map' + tr.tid + ' (' + tr.tx + ',' + tr.ty + ')';
-    item.addEventListener('mouseenter', function(){this.style.background='#444';});
-    item.addEventListener('mouseleave', function(){this.style.background='#333';});
+    item.style.cssText = 'padding:6px 10px;margin:2px 0;background:' + (isReturn ? '#3a5a3a' : '#333') + ';border-radius:4px;cursor:pointer;color:' + (isReturn ? '#afa' : '#ccc') + ';font-size:13px;';
+    var menuName = MAP_NAMES[tr.tid] || ('Map' + tr.tid);
+    item.textContent = (isReturn ? '◀ ' : '→ ') + menuName + ' (' + tr.tx + ',' + tr.ty + ')' + (isReturn ? ' 回头' : '');
+    item.addEventListener('mouseenter', function(){this.style.background='#555';});
+    item.addEventListener('mouseleave', function(){this.style.background= isReturn ? '#3a5a3a' : '#333';});
     item.addEventListener('click', function(e) { e.stopPropagation(); menu.remove(); callback(tr); });
     menu.appendChild(item);
   });
@@ -385,7 +474,7 @@ function updateUI() {
   list.innerHTML = '';
   selections.forEach((s, i) => {
     const li = document.createElement('li');
-    li.innerHTML = '<span>(' + s.absX + ',' + s.absY + ')' + (s.mapId ? ' Map' + s.mapId : '') + '</span><span class="del" data-i="' + i + '">✕</span>';
+    li.innerHTML = '<span class="coord">(' + s.absX + ',' + s.absY + ')' + (s.mapId ? '<span class="map-tag">Map' + s.mapId + '</span>' : '') + '</span><span class="del" data-i="' + i + '">✕</span>';
     li.querySelector('.del').addEventListener('click', function(e) {
       e.stopPropagation();
       selections.splice(parseInt(this.dataset.i), 1);
@@ -411,19 +500,12 @@ function updateUI() {
 // ─── 缩放 ─────────────────────────────────────────────────────
 document.getElementById('scrollArea').addEventListener('wheel', function(e) {
   e.preventDefault();
-  const rect = this.getBoundingClientRect();
-  const factor = e.deltaY > 0 ? 1/1.15 : 1.15;
-  const oldZ = zoom;
-  zoom = Math.max(0.05, Math.min(10, zoom * factor));
-  const ratio = zoom / oldZ;
-  this.scrollLeft = (this.scrollLeft + e.clientX - rect.left) * ratio - (e.clientX - rect.left);
-  this.scrollTop = (this.scrollTop + e.clientY - rect.top) * ratio - (e.clientY - rect.top);
-  applyZoom();
+  zoomAtCursor(e.clientX, e.clientY, e.deltaY > 0 ? 1/1.15 : 1.15);
 }, { passive: false });
 
 // ─── 中键拖拽平移 ──────────────────────────────────────────
 (function() {
-  let panning = false, startX, startY, startLeft, startTop;
+  let panning = false, startX, startY, startVX, startVY;
   const area = document.getElementById('scrollArea');
   function stopPan() { panning = false; area.style.cursor = ''; }
   area.addEventListener('mousedown', function(e) {
@@ -432,193 +514,389 @@ document.getElementById('scrollArea').addEventListener('wheel', function(e) {
       panning = true;
       startX = e.clientX;
       startY = e.clientY;
-      startLeft = this.scrollLeft;
-      startTop = this.scrollTop;
-      this.style.cursor = 'grabbing';
+      startVX = viewX;
+      startVY = viewY;
+      area.style.cursor = 'grabbing';
     }
   });
   document.addEventListener('mousemove', function(e) {
     if (!panning) return;
     e.preventDefault();
-    area.scrollLeft = startLeft - (e.clientX - startX);
-    area.scrollTop = startTop - (e.clientY - startY);
+    viewX = startVX + (e.clientX - startX);
+    viewY = startVY + (e.clientY - startY);
+    updateTransform();
   });
   document.addEventListener('mouseup', function(e) {
     if (e.button === 1 && panning) stopPan();
   });
-  // 防止中键点击弹出自动滚动图标
   area.addEventListener('auxclick', function(e) { if (e.button === 1) e.preventDefault(); });
-  // 防止窗口失焦导致 panning 卡住
   window.addEventListener('blur', stopPan);
 })();
 
 document.addEventListener('keydown', function(e) {
   const area = document.getElementById('scrollArea');
   const rect = area.getBoundingClientRect();
-  const cx = rect.width / 2, cy = rect.height / 2;
-  if (e.ctrlKey && e.key === '=') { e.preventDefault(); zoom = Math.max(0.05, Math.min(10, zoom * 1.3)); applyZoom(); }
-  if (e.ctrlKey && e.key === '-') { e.preventDefault(); zoom = Math.max(0.05, Math.min(10, zoom / 1.3)); applyZoom(); }
-  if (e.ctrlKey && e.key === '0') { e.preventDefault(); zoom = 1; applyZoom(); }
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  if (e.ctrlKey && e.key === '=') { e.preventDefault(); zoomAtCursor(cx, cy, 1.3); }
+  if (e.ctrlKey && e.key === '-') { e.preventDefault(); zoomAtCursor(cx, cy, 1/1.3); }
+  if (e.ctrlKey && e.key === '0') { e.preventDefault(); zoom = 1; viewX = 0; viewY = 0; updateTransform(); }
 });
 
-// ─── 裁剪状态 ───────────────────────────────────────────────
+// ─── 传送点列表（类似 MTool）───────────────────────────────
+function getMapName(id) {
+  for (var i = 0; i < MAP_LIST.length; i++) { if (MAP_LIST[i].id === Number(id)) return MAP_LIST[i].name; }
+  return '';
+}
+function renderTransferList() {
+  var container = document.getElementById('transferList');
+  var countEl = document.getElementById('transferCount');
+  if (!container) return;
+  var mid = window._currentMapId;
+  if (!mid || isNaN(mid) || !TRANSFERS) {
+    container.innerHTML = '<div style="color:#555;padding:8px;text-align:center;">当前地图无传送点数据</div>';
+    countEl.textContent = '';
+    return;
+  }
+  mid = Number(mid);
+  var tdata = TRANSFERS[mid];
+  if (!tdata || tdata.length === 0) {
+    container.innerHTML = '<div style="color:#555;padding:8px;text-align:center;">当前地图无传送点</div>';
+    countEl.textContent = '';
+    return;
+  }
+  countEl.textContent = '（' + tdata.length + '）';
+  var html = '';
+  var show = document.getElementById('showTransfers').checked;
+  tdata.forEach(function(tr) {
+    if (!show) return;
+    var evName = tr.eventName || ('EV' + String(tr.eventId).padStart(2, '0'));
+    var mapName = getMapName(tr.tid);
+    var isSelf = tr.tid === mid;
+    var suffix = tr.source === 'map_var' ? ' [变量]' : '';
+    var condStr = tr.condition ? ' <span style="color:#888;">' + tr.condition + '</span>' : '';
+    html += '<div style="background:#2a2a2a;border-radius:4px;padding:5px 7px;margin-bottom:3px;overflow:hidden;box-sizing:border-box;">';
+    html += '  <div style="color:#ddd;font-size:10px;">#' + tr.eventId + ' ' + evName + ' @(' + tr.fx + ',' + tr.fy + ') P' + (tr.page + 1) + condStr + '</div>';
+    html += '  <div style="color:#8c8;font-size:11px;">→ ' + (tr.source === 'map_var' ? '变量指定' : 'Map ' + tr.tid);
+    if (mapName) html += ' ' + mapName;
+    if (!tr.source || tr.source !== 'map_var') html += ' (' + tr.tx + ',' + tr.ty + ')';
+    if (isSelf) html += ' <span style="color:#666;">本图</span>';
+    html += suffix + '</div>';
+    html += '  <div style="margin-top:2px;display:flex;gap:4px;">';
+    html += '    <button class="tp-locate-e" data-fx="' + tr.fx + '" data-fy="' + tr.fy + '" style="flex:1;padding:1px 0;background:#3a3a5a;border:none;color:#aac;border-radius:2px;cursor:pointer;font-size:10px;">📍 定位源</button>';
+    if (tr.source !== 'map_var') {
+      html += '    <button class="tp-jump-e" data-tid="' + tr.tid + '" data-tx="' + tr.tx + '" data-ty="' + tr.ty + '" style="flex:1;padding:1px 0;background:#3a5a3a;border:none;color:#aca;border-radius:2px;cursor:pointer;font-size:10px;">➡ 跳到目标</button>';
+    }
+    html += '  </div>';
+    html += '</div>';
+  });
+  container.innerHTML = html || '<div style="color:#555;padding:8px;text-align:center;">无传送点</div>';
+  // 定位源
+  container.querySelectorAll('.tp-locate-e').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var fx = parseFloat(this.dataset.fx);
+      var fy = parseFloat(this.dataset.fy);
+      var area = document.getElementById('scrollArea');
+      var zw = zoom;
+      viewX = area.clientWidth / 2 - (fx + 0.5) * TILE * zw;
+      viewY = area.clientHeight / 2 - (fy + 0.5) * TILE * zw;
+      updateTransform();
+      _activeTransfer = { fx: fx, fy: fy };
+      drawGrid();
+      clearTimeout(window._activeTransferTimer);
+      window._activeTransferTimer = setTimeout(function() { _activeTransfer = null; drawGrid(); }, 2000);
+      document.getElementById('status').textContent = '已定位到 (' + fx + ',' + fy + ')';
+    });
+  });
+  // 跳到目标
+  container.querySelectorAll('.tp-jump-e').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tid = parseInt(this.dataset.tid);
+      var tx = parseInt(this.dataset.tx);
+      var ty = parseInt(this.dataset.ty);
+      var mid = window._currentMapId;
+      // 保存返回入口信息
+      var item = btn.closest('[style*="background"]');
+      var locateBtn = item ? item.querySelector('.tp-locate-e') : null;
+      var fx = locateBtn ? parseFloat(locateBtn.dataset.fx) : NaN;
+      var fy = locateBtn ? parseFloat(locateBtn.dataset.fy) : NaN;
+      if (!isNaN(fx) && !isNaN(fy)) {
+        _backEntry = { fromMap: Number(tid), toMap: Number(mid), toTx: fx, toTy: fy, fromTx: tx, fromTy: ty };
+      }
+      loadMap(tid, { fromMap: Number(mid), fromFx: null, fromFy: null, toMap: Number(tid), toTx: tx, toTy: ty });
+      _skipSelectChange = true;
+      document.getElementById('mapSelect').value = String(tid);
+      setTimeout(function() { _skipSelectChange = false; }, 0);
+      document.getElementById('status').textContent = '跳转到 Map' + tid;
+    });
+  });
+}
+
+// 监听 showTransfers → 刷新列表
+document.getElementById('showTransfers').addEventListener('change', function() {
+  renderTransferList();
+  drawGrid();
+});
+
+// 返回按钮
+document.getElementById('backBtn').addEventListener('click', function() {
+  if (_prevMapId !== null) {
+    var prevId = _prevMapId; // loadMap 会覆盖 _prevMapId，先保存
+    var cur = Number(window._currentMapId);
+    var entry = _backEntry ? { fromMap: cur, toMap: _backEntry.toMap, toTx: _backEntry.toTx, toTy: _backEntry.toTy } : null;
+    // 翻转 _backEntry，使得下次返回能高亮反方向的传送点
+    if (_backEntry) {
+      _backEntry = {
+        fromMap: _backEntry.toMap,
+        toMap: _backEntry.fromMap,
+        toTx: _backEntry.fromTx || _backEntry.toTx,
+        toTy: _backEntry.fromTy || _backEntry.toTy,
+        fromTx: _backEntry.toTx,
+        fromTy: _backEntry.toTy,
+      };
+    }
+    loadMap(prevId, entry);
+    _skipSelectChange = true;
+    document.getElementById('mapSelect').value = String(prevId);
+    setTimeout(function() { _skipSelectChange = false; }, 0);
+  }
+});
+
+// ─── 内容边界（用于居中/缩放适配）────────────────────────
 var _cropBounds = null;
-var _cropActive = true;
-var _bgVals = null; // 背景 tile 的 5 层值
-var _contentImg = null;
-var _contentLoaded = false;
 
 function computeContentBounds() {
   if (!tilemap) return null;
   var w = tilemap.w, h = tilemap.h, d = tilemap.data;
   if (!w || !h) return null;
-  var minY = 0, maxY = h - 1, minX = 0, maxX = w - 1;
-  for (minY = 0; minY < h; minY++) { var i0 = (minY * w) * 5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var x=1;x<w&&s;x++){var i=(minY*w+x)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  for (maxY = h-1; maxY>=0; maxY--) { var i0=(maxY*w)*5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var x=1;x<w&&s;x++){var i=(maxY*w+x)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  for (minX = 0; minX < w; minX++) { var i0=(0*w+minX)*5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var y=1;y<h&&s;y++){var i=(y*w+minX)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  for (maxX = w-1; maxX>=0; maxX--) { var i0=(0*w+maxX)*5, r0=d[i0],r1=d[i0+1],r2=d[i0+2],r3=d[i0+3],r4=d[i0+4], s=true; for (var y=1;y<h&&s;y++){var i=(y*w+maxX)*5;if(d[i]!==r0||d[i+1]!==r1||d[i+2]!==r2||d[i+3]!==r3||d[i+4]!==r4)s=false;}if(!s)break;}
-  if (minX > maxX || minY > maxY) return null;
-  return { minX, minY, maxX, maxY, w: maxX-minX+1, h: maxY-minY+1 };
-}
-
-// ─── 裁剪逻辑（强制开/关 + 按钮切换）────────────────────
-function enableCrop() {
-  if (!tilemap || !imgLoaded) return;
-  // 如果已有 bounds，说明已经缩放过了，跳过
-  if (_cropBounds) return;
-  var b = computeContentBounds();
-  if (!b) return;
-  _cropBounds = b;
-  // 计算背景 tile
-  var d = tilemap.data, freq = {};
+  // 1. 统计最频繁 tile 作为背景
+  var freq = {};
   for (var fi = 0; fi < d.length; fi += 5) {
     var fk = d[fi]+','+d[fi+1]+','+d[fi+2]+','+d[fi+3]+','+d[fi+4];
     freq[fk] = (freq[fk] || 0) + 1;
   }
   var bgKey = Object.keys(freq).reduce(function(a,b){return freq[a]>freq[b]?a:b});
-  _bgVals = bgKey.split(',').map(Number);
-  _cropActive = true;
-  document.getElementById('fitContent').style.background = '#6a9a3a';
-  var TILE = 48;
-  var cropX = b.minX * TILE, cropY = b.minY * TILE;
-  var cropW = b.w * TILE, cropH = b.h * TILE;
-  var area = document.getElementById('scrollArea');
-  var viewW = area.clientWidth, viewH = area.clientHeight;
-  zoom = Math.max(0.05, Math.min(10, Math.min(viewW / cropW, viewH / cropH, 2)));
-  area.scrollLeft = cropX * zoom - (viewW - cropW * zoom) / 2;
-  area.scrollTop = cropY * zoom - (viewH - cropH * zoom) / 2;
-  applyZoom();
-  drawGrid();
-  document.getElementById('status').textContent = '裁剪: ' + b.w + '×' + b.h + ' 格';
-}
-
-function toggleCrop() {
-  // 按钮点击切换
-  if (!tilemap || !imgLoaded) return;
-  if (_cropActive) {
-    _cropActive = false;
-    _cropBounds = null;
-    document.getElementById('fitContent').style.background = '#5a5a3a';
-    zoom = 1; applyZoom();
-    drawGrid();
-    document.getElementById('status').textContent = '裁剪关闭';
-  } else {
-    enableCrop();
-    if (!_cropActive) document.getElementById('status').textContent = '未检测到可裁剪区域';
+  var bg = bgKey.split(',').map(Number);
+  // 2. 逐行扫描左右边界（贴合不规则房间形状）
+  var rowLeft = [], rowRight = [];
+  var hasContent = false;
+  for (var y = 0; y < h; y++) {
+    var left = -1, right = -1;
+    for (var x = 0; x < w; x++) {
+      var i = (y * w + x) * 5;
+      if (d[i] !== bg[0] || d[i+1] !== bg[1] || d[i+2] !== bg[2] || d[i+3] !== bg[3] || d[i+4] !== bg[4]) {
+        if (left === -1) left = x;
+        right = x;
+        hasContent = true;
+      }
+    }
+    rowLeft[y] = left;
+    rowRight[y] = right;
   }
+  if (!hasContent) return null;
+  // 3. 总体边界（用于限制平滑范围）
+  var minY = h, maxY = 0;
+  for (var y = 0; y < h; y++) { if (rowLeft[y] >= 0) { if (y < minY) minY = y; if (y > maxY) maxY = y; } }
+  // 4. 平滑边界：用相邻行的边界补全装饰空白导致的断裂
+  //    只平滑在总体边界内的行，避免空洞区域被错误填充
+  for (var pass = 0; pass < 2; pass++) {
+    for (var y = minY + 1; y <= maxY - 1; y++) {
+      if (rowLeft[y] < 0) {
+        if (rowLeft[y-1] >= 0 || rowLeft[y+1] >= 0) {
+          var aboveL = rowLeft[y-1] >= 0 ? rowLeft[y-1] : w;
+          var aboveR = rowRight[y-1] >= 0 ? rowRight[y-1] : 0;
+          var belowL = rowLeft[y+1] >= 0 ? rowLeft[y+1] : w;
+          var belowR = rowRight[y+1] >= 0 ? rowRight[y+1] : 0;
+          rowLeft[y] = Math.min(aboveL, belowL);
+          rowRight[y] = Math.max(aboveR, belowR);
+        }
+      } else {
+        if (rowLeft[y-1] >= 0 && rowLeft[y-1] < rowLeft[y]) rowLeft[y] = rowLeft[y-1];
+        if (rowLeft[y+1] >= 0 && rowLeft[y+1] < rowLeft[y]) rowLeft[y] = rowLeft[y+1];
+        if (rowRight[y-1] >= 0 && rowRight[y-1] > rowRight[y]) rowRight[y] = rowRight[y-1];
+        if (rowRight[y+1] >= 0 && rowRight[y+1] > rowRight[y]) rowRight[y] = rowRight[y+1];
+      }
+    }
+  }
+  // 总体边界（用于缩放适配）
+  var minX = w, maxX = 0, minY = h, maxY = 0;
+  for (var y = 0; y < h; y++) { if (rowLeft[y] >= 0) { if (rowLeft[y] < minX) minX = rowLeft[y]; if (rowRight[y] > maxX) maxX = rowRight[y]; if (y < minY) minY = y; if (y > maxY) maxY = y; } }
+  if (minX > maxX || minY > maxY) return null;
+  return { minX, minY, maxX, maxY, w: maxX-minX+1, h: maxY-minY+1, rowLeft: rowLeft, rowRight: rowRight };
 }
 
-document.getElementById('fitContent').addEventListener('click', toggleCrop);
-document.getElementById('zoomFit').addEventListener('click', function() {
+// ─── 内容边界计算 + 居中适配 ────────────────────────────
+function enableCrop() {
   if (!tilemap || !imgLoaded) return;
+  if (_cropBounds) return;
+  if (PARALLAX_MAPS[window._currentMapId]) return;
   var b = computeContentBounds();
   if (!b) return;
-  var TILE = 48;
+  _cropBounds = b;
+}
+function zoomToCrop() {
+  if (!_cropBounds || !imgLoaded) return;
+  var area = document.getElementById('scrollArea');
+  var TILE = 48, b = _cropBounds;
   var cropX = b.minX * TILE, cropY = b.minY * TILE;
   var cropW = b.w * TILE, cropH = b.h * TILE;
-  var area = document.getElementById('scrollArea');
   var viewW = area.clientWidth, viewH = area.clientHeight;
-  var fz = Math.max(0.05, Math.min(10, Math.min(viewW / cropW, viewH / cropH, 2)));
-  zoom = fz;
-  area.scrollLeft = cropX * zoom - (viewW - cropW * zoom) / 2;
-  area.scrollTop = cropY * zoom - (viewH - cropH * zoom) / 2;
-  applyZoom();
-  drawGrid();
-  document.getElementById('status').textContent = '居中: ' + b.w + '×' + b.h + ' 格';
-});
-document.getElementById('showBg').addEventListener('change', function() {
-  if (!imgLoaded || !window._currentMapId) return;
-  var show = document.getElementById('showBg').checked;
-  if (show) {
-    // 恢复主图
-    var mid = window._currentMapId;
-    loadMap(mid);
+  zoom = Math.max(0.05, Math.min(10, Math.min(viewW / cropW, viewH / cropH, 2)));
+  viewX = -(cropX * zoom) + (viewW - cropW * zoom) / 2;
+  viewY = -(cropY * zoom) + (viewH - cropH * zoom) / 2;
+  updateTransform();
+}
+
+document.getElementById('zoomFit').addEventListener('click', function() {
+  if (!imgLoaded) return;
+  if (_cropBounds) {
+    zoomToCrop();
+    document.getElementById('status').textContent = '居中: ' + _cropBounds.w + '×' + _cropBounds.h + ' 格';
+  } else if (tilemap) {
+    enableCrop();
+    zoomToCrop();
+    if (_cropBounds) document.getElementById('status').textContent = '居中: ' + _cropBounds.w + '×' + _cropBounds.h + ' 格';
   } else {
-    // 加载无背景图
-    var mid = window._currentMapId;
-    var pad = String(mid).padStart(4, '0');
-    var path = 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '_content.png';
-    if (_contentLoaded && _contentImg) {
-      img = _contentImg;
-      mapCanvas.width = img.width;
-      mapCanvas.height = img.height;
-      gridCanvas.width = img.width;
-      gridCanvas.height = img.height;
-      drawMap();
-      drawGrid();
-      applyZoom();
-    } else {
-      var newImg = new Image();
-      newImg._mapId = mid;
-      newImg.onload = function() {
-        _contentImg = newImg;
-        _contentLoaded = true;
-        img = newImg;
-        mapCanvas.width = img.width;
-        mapCanvas.height = img.height;
-        gridCanvas.width = img.width;
-        gridCanvas.height = img.height;
-        drawMap();
-        drawGrid();
-        applyZoom();
-        document.getElementById('status').textContent = '背景已隐藏';
-      };
-      newImg.onerror = function() {
-        document.getElementById('showBg').checked = true;
-        document.getElementById('status').textContent = '未找到 _content.png，请重新渲染';
-      };
-      newImg.src = path;
-    }
+    var area = document.getElementById('scrollArea');
+    viewX = (area.clientWidth - img.width * zoom) / 2;
+    viewY = (area.clientHeight - img.height * zoom) / 2;
+    updateTransform();
+    document.getElementById('status').textContent = '已居中';
   }
 });
 
 document.getElementById('clearSel').addEventListener('click', function() { selections = []; updateUI(); });
 document.getElementById('showGrid').addEventListener('change', drawGrid);
 document.getElementById('showLabels').addEventListener('change', drawGrid);
-document.getElementById('showTransfers').addEventListener('change', drawGrid);
 document.getElementById('mapSelect').addEventListener('change', function() { if (_skipSelectChange) { _skipSelectChange = false; return; } if (this.value) loadMap(this.value); });
-document.getElementById('saveBtn').addEventListener('click', function() {
-  const blob = new Blob([JSON.stringify(selections, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'selections.json';
-  a.click();
-});
 document.getElementById('copyBtn').addEventListener('click', function() {
   const data = JSON.stringify(selections, null, 2);
   document.getElementById('jsonPreview').value = data;
   navigator.clipboard.writeText(data);
 });
-document.getElementById('exportTransferBtn').addEventListener('click', function() {
-  const blob = new Blob([JSON.stringify(TRANSFERS, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'transfers.json';
-  a.click();
+
+// ─── 插件管理弹窗 ───────────────────────────────────────────
+document.getElementById('pluginBtn').addEventListener('click', function() {
+  var modal = document.getElementById('pluginModal');
+  modal.style.display = 'block';
+  // 通过 IPC 获取插件列表
+  if (window.electronAPI && window.electronAPI.getPlugins) {
+    electronAPI.getPlugins().then(function(list) {
+      renderPluginList(list);
+    }).catch(function() {
+      document.getElementById('pluginList').innerHTML = '<div style="color:#888;padding:8px;">无法获取插件列表（查看器不直接管理插件）</div>';
+    });
+  } else {
+    document.getElementById('pluginList').innerHTML = '<div style="color:#888;padding:8px;">插件由 render-maps.js 在渲染时加载，请在 scripts/plugins/ 目录下管理</div>';
+  }
 });
+// 弹窗关闭/导入交给行内 onclick 处理
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function toggleViewerPlugin(input) {
+  var c = input.checked, card = input.closest('[style*="display:flex"]');
+  var name = input.getAttribute('data-pname');
+  localStorage.setItem('plugin_' + name, c);
+  card.style.borderLeftColor = c ? '#4a8bc2' : '#444';
+  input.nextElementSibling.style.background = c ? '#4a8bc2' : '#444';
+  input.nextElementSibling.nextElementSibling.style.left = c ? '20px' : '2px';
+}
+
+function renderPluginList(list) {
+  var html = '';
+  if (!list || list.length === 0) {
+    html = '<div style="color:#888;padding:8px;">暂无插件</div>';
+  } else {
+    list.forEach(function(p) {
+      var enabled = localStorage.getItem('plugin_' + p.name) !== 'false';
+      var safeName = esc(p.name);
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:4px;background:#2a2a2a;border-radius:6px;border-left:3px solid ' + (enabled ? '#4a8bc2' : '#444') + ';">';
+      html += '  <div style="flex:1;min-width:0;">';
+      html += '    <div style="color:#ddd;font-size:13px;">' + safeName + '</div>';
+      html += '    <div style="color:#888;font-size:11px;">' + esc(p.description || '') + '</div>';
+      html += '    <div style="color:#666;font-size:10px;margin-top:2px;">tags: ' + esc(p.tags ? p.tags.join(', ') : '-') + ' | hook: ' + esc(p.hook) + '</div>';
+      html += '  </div>';
+      html += '  <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;margin-left:8px;cursor:pointer;">';
+      html += '    <input type="checkbox" ' + (enabled ? 'checked' : '') + ' data-pname="' + safeName + '" style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;" onchange="toggleViewerPlugin(this)">';
+      html += '    <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + (enabled ? '#4a8bc2' : '#444') + ';border-radius:11px;transition:.2s;pointer-events:none;"></span>';
+      html += '    <span style="position:absolute;top:2px;left:' + (enabled ? '20px' : '2px') + ';width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>';
+      html += '  </label>';
+      html += '</div>';
+    });
+  }
+  document.getElementById('pluginList').innerHTML = html;
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+async function importPlugin() {
+  try {
+    if (!window.electronAPI || !window.electronAPI.importPlugin) { alert('导入功能仅限 Electron 桌面版使用'); return; }
+    var result = await electronAPI.importPlugin();
+    if (!result) return;
+    if (result.duplicate) { alert('插件「' + result.file + '」已存在'); return; }
+    if (result.success) {
+      alert('插件「' + result.file + '」导入成功');
+      var list = await electronAPI.getPlugins();
+      if (typeof renderPluginList === 'function') renderPluginList(list);
+    } else { alert('导入失败: ' + (result.error || '未知错误')); }
+  } catch(e) { alert('导入出错: ' + e.message); }
+}
 
 // ─── 启动 ─────────────────────────────────────────────────────
 loadData();
 </script>
+
+<!-- 插件管理弹窗 -->
+<div id="pluginModal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);">
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#222;border:1px solid #444;border-radius:12px;padding:24px;width:520px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    <h2 style="color:#ddd;font-size:16px;margin-bottom:16px;">🧩 插件管理</h2>
+    <div id="pluginList" style="margin-bottom:16px;">
+      <div style="color:#666;font-style:italic;padding:8px;">正在加载插件列表…</div>
+    </div>
+    <div style="display:flex;gap:8px;border-top:1px solid #333;padding-top:12px;">
+      <button style="flex:1;padding:6px 0;background:#3a5a3a;border:none;border-radius:6px;color:#aca;cursor:pointer;font-size:13px;" onclick="importPlugin()">📥 导入插件</button>
+      <button style="flex:1;padding:6px 0;background:#3a3a5a;border:none;border-radius:6px;color:#aac;cursor:pointer;font-size:13px;" onclick="document.getElementById('pluginHelpModal').style.display='block'">📖 帮助</button>
+      <button style="flex:1;padding:6px 0;background:#3a3a3a;border:none;border-radius:6px;color:#aaa;cursor:pointer;font-size:13px;" onclick="document.getElementById('pluginModal').style.display='none'">✕ 关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 插件帮助弹窗 -->
+<div id="pluginHelpModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);">
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#1e1e1e;border:1px solid #444;border-radius:12px;padding:24px;width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);color:#ccc;font-size:13px;line-height:1.6;">
+    <h2 style="color:#ddd;font-size:16px;margin-bottom:12px;">📖 插件开发指南</h2>
+    <p>插件是放在 <code style="background:#2a2a2a;padding:1px 6px;border-radius:3px;color:#8c8;">scripts/plugins/</code> 目录下的独立 JS 文件，每个文件导出一个插件对象：</p>
+    <pre style="background:#2a2a2a;padding:12px;border-radius:6px;margin:10px 0;font:11px/1.5 monospace;color:#8c8;overflow-x:auto;">
+module.exports = {
+  name: 'MyPlugin',        // 插件名称
+  description: '说明文字',  // 简短描述
+  hook: 'eventSprite',     // 钩子：eventSprite
+  tags: ['MY_TAG'],        // 声明的 note 标签（用于识别）
+
+  process: function(ev, ctx) {
+    // ev:  事件对象 { x, y, pages, note, ... }
+    // ctx: 上下文 { shiftX, shiftY }
+    // 修改 ctx 来影响精灵渲染
+    var m = ev.note.match(/<MY_TAG:A,\s*([-\d]+),\s*([-\d]+)\s*>/);
+    if (m) {
+      ctx.shiftX = (ctx.shiftX || 0) + (parseInt(m[1], 10) || 0);
+      ctx.shiftY = (ctx.shiftY || 0) + (parseInt(m[2], 10) || 0);
+    }
+  }
+};</pre>
+    <h3 style="color:#ddd;font-size:14px;margin-top:14px;">可用的钩子（hook）</h3>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;">
+      <tr><td style="padding:4px 8px;background:#2a2a2a;color:#aac;font-family:monospace;">eventSprite</td><td style="padding:4px 8px;">渲染每个事件精灵时调用，可修改偏移量</td></tr>
+    </table>
+    <h3 style="color:#ddd;font-size:14px;margin-top:14px;">测试插件</h3>
+    <p>运行渲染命令查看效果：</p>
+    <pre style="background:#2a2a2a;padding:8px;border-radius:4px;font:11px monospace;color:#8c8;">
+node scripts/render-maps.js "游戏目录" 地图ID</pre>
+    <p>如果插件有 <code style="background:#2a2a2a;padding:1px 6px;border-radius:3px;color:#8c8;">tags</code> 声明，渲染时会自动显示识别状态。</p>
+    <button style="margin-top:12px;padding:6px 20px;background:#3a3a3a;border:none;border-radius:6px;color:#aaa;cursor:pointer;font-size:13px;" onclick="document.getElementById('pluginHelpModal').style.display='none'">✕ 关闭</button>
+  </div>
+</div>
+
 </body>
 </html>

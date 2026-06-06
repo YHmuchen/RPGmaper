@@ -19,4 +19,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onProjectAdded: (cb) => ipcRenderer.on('project-added', (e, d) => cb(d)),
   onScriptOutput: (cb) => ipcRenderer.on('script-output', (e, d) => cb(d)),
   onScriptDone: (cb) => ipcRenderer.on('script-done', (e, d) => cb(d)),
+
+  // 插件
+  getPlugins: () => ipcRenderer.invoke('get-plugins'),
+  importPlugin: () => ipcRenderer.invoke('import-plugin'),
+  onPluginOpen: (cb) => { ipcRenderer.removeAllListeners('menu-plugin-open'); ipcRenderer.on('menu-plugin-open', () => cb()); },
+  onPluginHelp: (cb) => { ipcRenderer.removeAllListeners('menu-plugin-help'); ipcRenderer.on('menu-plugin-help', () => cb()); },
 });

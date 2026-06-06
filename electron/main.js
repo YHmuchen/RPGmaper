@@ -40,6 +40,14 @@ function createWindow() {
         { role: 'reload', label: '重新加载' },
       ],
     },
+    {
+      label: '插件',
+      submenu: [
+        { label: '插件管理…', click: () => mainWindow.webContents.send('menu-plugin-open') },
+        { type: 'separator' },
+        { label: '插件开发帮助…', click: () => mainWindow.webContents.send('menu-plugin-help') },
+      ],
+    },
   ]);
   Menu.setApplicationMenu(menu);
 }
@@ -54,9 +62,10 @@ function scanProjects() {
     const tilesets = fs.existsSync(path.join(dir, 'tilesets'))
       ? fs.readdirSync(path.join(dir, 'tilesets')).filter(f => f.endsWith('.png')).length : 0;
     const trans = fs.existsSync(path.join(dir, 'transfers_data.js')) ? true : false;
+    const tilemapJS = fs.existsSync(path.join(dir, 'maps', 'tilemaps_data.js')) ? true : false;
     const maps = fs.existsSync(path.join(dir, 'maps'))
       ? fs.readdirSync(path.join(dir, 'maps')).filter(f => f.endsWith('.png')).length : 0;
-    projects.push({ name, tilesets, maps, hasTransfers: trans });
+    projects.push({ name, tilesets, maps, hasTransfers: trans, hasTilemaps: tilemapJS });
   }
   return projects;
 }
@@ -210,6 +219,54 @@ ipcMain.handle('get-parallax-maps', (event, gameDir) => {
     } catch (e) {}
   }
   return result;
+});
+
+// ─── 插件 ──────────────────────────────────────────────────────
+ipcMain.handle('get-plugins', () => {
+  const dir = path.join(PROJECT_ROOT, 'scripts', 'plugins');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => {
+    const fullPath = path.join(dir, f);
+    try {
+      const src = fs.readFileSync(fullPath, 'utf8');
+      const val = (re, fallback) => { var m = src.match(re); return m ? m[1] : fallback; };
+      const name = val(/name:\s*['"]([^'"]+)['"]/, f.replace('.js', ''));
+      const desc = val(/description:\s*['"]([^'"]+)['"]/, '');
+      const hook = val(/hook:\s*['"]([^'"]+)['"]/, '?');
+      const tags = val(/tags:\s*\[([^\]]+)\]/, '');
+      const tagList = tags ? tags.split(',').map(t => t.trim().replace(/['"]/g, '')) : [];
+      const enabled = src.includes('process:') && src.includes('function');
+      return { file: f, name, description: desc, hook, tags: tagList, enabled };
+    } catch (e) {
+      return { file: f, name: f.replace('.js', ''), description: '读取失败', hook: '?', tags: [], enabled: false };
+    }
+  });
+});
+
+ipcMain.handle('import-plugin', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: '插件文件', extensions: ['js'] }],
+    title: '导入插件',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const srcPath = result.filePaths[0];
+  const destDir = path.join(PROJECT_ROOT, 'scripts', 'plugins');
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+  const fileName = path.basename(srcPath);
+  const destPath = path.join(destDir, fileName);
+
+  // 检查是否重复
+  if (fs.existsSync(destPath)) {
+    return { file: fileName, success: false, duplicate: true };
+  }
+
+  try {
+    fs.copyFileSync(srcPath, destPath);
+    return { file: fileName, success: true };
+  } catch (e) {
+    return { file: fileName, success: false, error: e.message };
+  }
 });
 
 // ─── 启动 ─────────────────────────────────────────────────────
