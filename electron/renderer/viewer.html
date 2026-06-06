@@ -73,6 +73,12 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   <input type="checkbox" id="showTransfers" checked>
   <label>特效</label>
   <input type="checkbox" id="showFx" checked>
+  <label>时段</label>
+  <select id="timeSelect" style="font-size:11px;padding:1px 4px;">
+    <option value="day">昼</option>
+    <option value="evening">夕方</option>
+    <option value="night">夜</option>
+  </select>
   <label>网格</label>
   <input type="checkbox" id="showGrid" checked>
   <label>标签</label>
@@ -137,6 +143,12 @@ const fctx = fxCanvas.getContext('2d');
 var _plmLayers = null; // [{ file, blend, opacity, img }]
 var _plmLoaded = false;
 const wrap = document.getElementById('canvasWrap');
+// 调整 canvas 层级顺序: mapCanvas → fxCanvas → gridCanvas
+(function() {
+  var fxC = document.getElementById('fxCanvas');
+  var gc = document.getElementById('gridCanvas');
+  if (fxC && gc && wrap && fxC.nextSibling !== gc) wrap.insertBefore(fxC, gc);
+})();
 
 let img = new Image();
 let zoom = 1, viewX = 0, viewY = 0;
@@ -277,6 +289,10 @@ function loadMap(mapId, entrySource) {
     updateTransform();
     renderTransferList();
     imgLoaded = true;
+    electronAPI.loadMapData(GAME_DIR, mapId).then(function(data) {
+      window._mapEventData = data;
+      applyMapTone();
+    }).catch(function() {});
     var tw = tilemap ? tilemap.w + '×' + tilemap.h + '格' : '';
     // 再异步裁剪+适配内容区域（如有 tilemap）
     setTimeout(function() {
@@ -1030,6 +1046,8 @@ function loadPlmLayers(mapId) {
             _plmLayers = meta;
             _plmLoaded = true;
             if (document.getElementById('showFx').checked) drawFx();
+            // PLM 合成后重绘色调（确保色调从含 PLM 的 fxCanvas 取像素）
+            if (_toneEnabled && typeof applyMapTone === 'function') applyMapTone();
             // 通知插件面板刷新
             if (typeof updatePluginSubOptions === 'function') updatePluginSubOptions();
           }
@@ -1043,23 +1061,200 @@ function loadPlmLayers(mapId) {
 function drawFx() {
   fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
   if (!_plmLayers) return;
+  // 先把地图画到底层
+  fctx.drawImage(mapCanvas, 0, 0);
+  // 逐像素叠加 PLM 图层
+  // 时段透明度：光照/阴影层随昼→夜渐变
+  var timeFactor = _toneEnabled ? ({day: 0, evening: 0.35, night: 1.0}[_timePeriod] || 0) : 1;
+  var w = fxCanvas.width, h = fxCanvas.height;
+  var totalPx = w * h * 4;
+  var baseData = fctx.getImageData(0, 0, w, h);
+  var bp = baseData.data;
   _plmLayers.forEach(function(layer) {
     if (!layer.img) return;
     if (_plmEnabled[layer.key] === false) return;
-    fctx.globalAlpha = (layer.opacity || 255) / 255;
-    if (layer.blend === 1) fctx.globalCompositeOperation = 'lighter';
-    else if (layer.blend === 3) fctx.globalCompositeOperation = 'multiply';
-    else fctx.globalCompositeOperation = 'source-over';
-    fctx.drawImage(layer.img, 0, 0);
+    // 把 PLM 图层画到临时 canvas 取像素
+    var tmpC = document.createElement('canvas');
+    tmpC.width = w; tmpC.height = h;
+    var tmpCtx = tmpC.getContext('2d');
+    tmpCtx.globalAlpha = (layer.opacity || 255) / 255;
+    tmpCtx.drawImage(layer.img, 0, 0);
+    var layerData = tmpCtx.getImageData(0, 0, w, h);
+    var lp = layerData.data;
+    // 按混合模式逐像素合成
+    if (layer.blend === 1) {
+      // 光照（加算）: new = clamp(base + light * timeFactor, 0, 255)
+      for (var i = 0; i < totalPx; i += 4) {
+        var la = lp[i+3] / 255 * timeFactor;
+        if (la <= 0) continue;
+        bp[i]   = Math.min(bp[i]   + Math.round(lp[i]   * la), 255);
+        bp[i+1] = Math.min(bp[i+1] + Math.round(lp[i+1] * la), 255);
+        bp[i+2] = Math.min(bp[i+2] + Math.round(lp[i+2] * la), 255);
+        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
+      }
+    } else if (layer.blend === 2) {
+      // 阴影（alpha 混合）: new = base * (1-a) + shadow * a
+      for (var i = 0; i < totalPx; i += 4) {
+        var la2 = lp[i+3] / 255 * timeFactor;
+        if (la2 <= 0) continue;
+        var ia = 1 - la2;
+        bp[i]   = Math.round(bp[i]   * ia + lp[i]   * la2);
+        bp[i+1] = Math.round(bp[i+1] * ia + lp[i+1] * la2);
+        bp[i+2] = Math.round(bp[i+2] * ia + lp[i+2] * la2);
+        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
+      }
+    } else if (layer.blend === 3) {
+      // 乗算: new = base * overlay / 255
+      for (var i = 0; i < totalPx; i += 4) {
+        var la3 = lp[i+3] / 255;
+        if (la3 <= 0) continue;
+        bp[i]   = Math.round((bp[i]   * lp[i]   / 255) * la3 + bp[i]   * (1 - la3));
+        bp[i+1] = Math.round((bp[i+1] * lp[i+1] / 255) * la3 + bp[i+1] * (1 - la3));
+        bp[i+2] = Math.round((bp[i+2] * lp[i+2] / 255) * la3 + bp[i+2] * (1 - la3));
+        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
+      }
+    } else {
+      // 正常（source-over）
+      for (var i = 0; i < totalPx; i += 4) {
+        var la4 = lp[i+3] / 255;
+        if (la4 <= 0) continue;
+        var ia4 = 1 - la4;
+        bp[i]   = Math.round(bp[i]   * ia4 + lp[i]   * la4);
+        bp[i+1] = Math.round(bp[i+1] * ia4 + lp[i+1] * la4);
+        bp[i+2] = Math.round(bp[i+2] * ia4 + lp[i+2] * la4);
+        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
+      }
+    }
   });
-  fctx.globalCompositeOperation = 'source-over';
-  fctx.globalAlpha = 1;
+  // 色调合成（在 PLM 之上叠加全局色调）
+  if (_toneEnabled && typeof _currentTone !== "undefined" && _currentTone) {
+    var rOff = _currentTone[0], gOff = _currentTone[1], bOff = _currentTone[2];
+    var grayAmt = (_currentTone[3] || 0) / 255;
+    for (var ti = 0; ti < totalPx; ti += 4) {
+      var cr = bp[ti] + rOff;
+      var cg = bp[ti+1] + gOff;
+      var cb = bp[ti+2] + bOff;
+      cr = cr < 0 ? 0 : (cr > 255 ? 255 : cr);
+      cg = cg < 0 ? 0 : (cg > 255 ? 255 : cg);
+      cb = cb < 0 ? 0 : (cb > 255 ? 255 : cb);
+      if (grayAmt > 0) {
+        var gv = (cr + cg + cb) / 3;
+        cr = cr + (gv - cr) * grayAmt;
+        cg = cg + (gv - cg) * grayAmt;
+        cb = cb + (gv - cb) * grayAmt;
+      }
+      bp[ti] = Math.round(cr);
+      bp[ti+1] = Math.round(cg);
+      bp[ti+2] = Math.round(cb);
+    }
+  }
+  fctx.putImageData(baseData, 0, 0);
 }
 
 // 特效开关
 document.getElementById('showFx').addEventListener('change', function() {
   if (this.checked) drawFx();
   else fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+});
+
+// ─── 色调系统（CE#16 マップ色調） ──────────────────────────────
+// 仅对特定项目 + 插件启用时生效
+var _TONE_PROJECT = 'エニシアと契約紋 ～馬蹄通りの小聖女～';
+var _toneEnabled = PROJECT_NAME === _TONE_PROJECT && localStorage.getItem('plugin_MapTone') !== 'false';
+var _timePeriod = localStorage.getItem('rpgmaper_time') || 'day';
+var _currentTone = null; // [{R,G,B,Gray}, name]
+// 显示/隐藏时段下拉框
+if (!_toneEnabled) {
+  var ts = document.getElementById('timeSelect');
+  if (ts) ts.style.display = 'none';
+}
+
+function getMapTone(mapId, timePeriod) {
+  // 从地图 note 中解析 MAPTYPE
+  var mapData = window._mapEventData;
+  var mapType = '';
+  var alwaysLight = false;
+  var alwaysLightColor = false;
+  if (mapData && mapData.note) {
+    var note = mapData.note;
+    var m = note.match(/<MAPTYPE:\s*(\w+)\s*>/);
+    if (m) mapType = m[1];
+    if (note.includes('<ALWAYSLIGHT>')) alwaysLight = true;
+    if (note.includes('<ALWAYSLIGHT_COLOR>')) alwaysLightColor = true;
+  }
+  // 复现 CE#16 的逻辑
+  switch (mapType) {
+    case 'INSIDE_AROTIC':
+      return [[24,-25,17,51], 'INSIDE_AROTIC'];
+    case 'INSIDE_BATH':
+      return [[0,0,-34,0], 'INSIDE_BATH'];
+    case 'INSIDE_DUNGEON':
+      return [[-68,-68,0,68], 'INSIDE_DUNGEON'];
+    case 'OUTSIDE_DARK':
+      if (timePeriod === 'night') return [[-68,-68,0,34], 'DARK_night'];
+      return [[-34,-34,0,34], 'DARK_day'];
+    case 'INSIDE_DARK':
+      // INSIDE_DARK + ALWAYSLIGHT: 常明暗室
+      if (alwaysLight) return [[-34,-34,0,34], 'INSIDE_DARK_light'];
+      if (timePeriod === 'night') return [[-68,-68,0,34], 'INSIDE_DARK_night'];
+      return [[-34,-34,0,34], 'INSIDE_DARK_day'];
+    case 'INSIDE':
+      // INSIDE + ALWAYSLIGHT: 常明暗室
+      if (alwaysLightColor) return [[-34,-34,0,17], 'INSIDE_lightColor'];
+      if (alwaysLight) return [[-34,-34,0,34], 'INSIDE_light'];
+      if (timePeriod === 'night') return [[-68,-68,0,68], 'INSIDE_night'];
+      return [[0,0,0,0], 'INSIDE_day'];
+    case 'OUTSIDE':
+    case 'OUTSIDE_TOWN':
+    case 'INSIDE_WINDOW':
+    default:
+      if (timePeriod === 'night') return [[-68,-68,0,34], 'OUTSIDE_night'];
+      if (timePeriod === 'evening') return [[17,-34,-34,0], 'OUTSIDE_evening'];
+      return [[0,0,0,0], 'OUTSIDE_day'];
+  }
+}
+
+function applyMapTone() {
+  var mid = window._currentMapId;
+  if (!mid) return;
+  var toneInfo = getMapTone(mid, _timePeriod);
+  _currentTone = toneInfo[0];
+  // 触发重绘（drawFx 中会应用色调到合成像素）
+  if (document.getElementById("showFx").checked && _plmLoaded) drawFx();
+  // 状态栏
+  var extra = document.getElementById("statusExtra");
+  if (extra) {
+    var names = {day:'昼', evening:'夕方', night:'夜'};
+    extra.textContent = '时段:' + (names[_timePeriod]||_timePeriod) + ' 色调:' + toneInfo[1] + ' [' + _currentTone.join(',') + ']';
+  }
+}
+
+// 时段切换// 时段切换
+document.getElementById('timeSelect').value = _timePeriod;
+document.getElementById('timeSelect').addEventListener('change', function() {
+  _timePeriod = this.value;
+  localStorage.setItem('rpgmaper_time', _timePeriod);
+  applyMapTone();
+});
+
+// Patch loadMap 时段切换时也重绘色调
+var _origLoadMap = loadMap;
+loadMap = function(mid, entry) {
+  // loadMap 内部会更新 _currentMapId
+  // 直接调用原函数
+  var result = _origLoadMap.apply(this, arguments);
+  // 在 loadMap 完成后（setTimeout 等图片加载）
+  setTimeout(function() {
+    // 此时 map data 可能已加载，重新计算色调
+    applyMapTone();
+  }, 200);
+  return result;
+};
+
+// 也在 mapSelect 切换时触发
+document.getElementById('mapSelect').addEventListener('change', function() {
+  // mapSelect.change 已有 loadMap 调用，patch 已覆盖
+  setTimeout(applyMapTone, 500);
 });
 
 // ─── 启动 ─────────────────────────────────────────────────────
