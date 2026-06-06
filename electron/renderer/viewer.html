@@ -48,6 +48,19 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 #transferList { font-size: 11px; }
 #transferList > div { margin-bottom: 4px; }
 #statusExtra { color: #555; font-size: 11px; }
+#eventInfoSection { max-height: 400px; overflow-y: auto; }
+#eventInfoPanel { font-size: 12px; }
+#eventInfoPanel .ev-card { background:#222;border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px;line-height:1.6; }
+#eventInfoPanel .ev-pos { color:#aaf; }
+#eventInfoPanel .ev-label { color:#888; }
+#eventInfoPanel .ev-name { color:#ddd; }
+#eventInfoPanel .ev-note { color:#9c9;font-size:11px;word-break:break-all; }
+#eventInfoPanel .ev-page { margin-top:6px;padding-top:6px;border-top:1px solid #333; }
+#eventInfoPanel .ev-page-title { color:#fa7; }
+#eventInfoPanel .ev-meta { color:#999; }
+#eventInfoPanel .ev-interp { color:#696; }
+#eventInfoPanel .ev-switch { color:#8a8; }
+#eventInfoPanel .ev-other { color:#a8a; }
 </style>
 </head>
 <body>
@@ -58,6 +71,8 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   <select id="mapSelect" style="min-width:140px;"><option value="">—</option></select>
   <label>传送点</label>
   <input type="checkbox" id="showTransfers" checked>
+  <label>特效</label>
+  <input type="checkbox" id="showFx" checked>
   <label>网格</label>
   <input type="checkbox" id="showGrid" checked>
   <label>标签</label>
@@ -73,6 +88,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="mapCanvas"></canvas>
       <canvas id="gridCanvas"></canvas>
+      <canvas id="fxCanvas" style="pointer-events:none;"></canvas>
     </div>
   </div>
   <div class="sidebar">
@@ -97,6 +113,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
         </h3>
         <div id="transferList"></div>
       </div>
+      <div class="sidebar-section" id="eventInfoSection" style="display:none;">        <h3>事件查看器</h3>        <div id="eventInfoPanel"></div>      </div>
       <p id="statusExtra"></p>
     </div>
   </div>
@@ -113,8 +130,12 @@ const PROJECT_DIR = params.get('projectDir') || '';
 const TILE = 48, HALF = 24;
 const mapCanvas = document.getElementById('mapCanvas');
 const gridCanvas = document.getElementById('gridCanvas');
+const fxCanvas = document.getElementById('fxCanvas');
 const ctx = mapCanvas.getContext('2d');
 const gctx = gridCanvas.getContext('2d');
+const fctx = fxCanvas.getContext('2d');
+var _plmLayers = null; // [{ file, blend, opacity, img }]
+var _plmLoaded = false;
 const wrap = document.getElementById('canvasWrap');
 
 let img = new Image();
@@ -242,8 +263,11 @@ function loadMap(mapId, entrySource) {
     mapCanvas.height = img.height;
     gridCanvas.width = img.width;
     gridCanvas.height = img.height;
+    fxCanvas.width = img.width;
+    fxCanvas.height = img.height;
     drawMap();
     drawGrid();
+    loadPlmLayers(mapId);
     wrap.style.width = img.width + 'px';
     wrap.style.height = img.height + 'px';
     // 先同步居中（立即生效）
@@ -496,6 +520,91 @@ function updateUI() {
   }
   document.getElementById('selStatus').textContent = info;
 }
+
+// ─── 事件查看器 ────────────────────────────────────────────────
+var _currentMapData = null;
+var _switchNames = null;
+
+async function updateEventInfo() {
+  var panel = document.getElementById('eventInfoPanel');
+  var section = document.getElementById('eventInfoSection');
+  if (!selections.length || !window._currentMapId) {
+    section.style.display = 'none';
+    return;
+  }
+  var mid = Number(window._currentMapId);
+  var last = selections[selections.length - 1];
+  var ex = last.absX, ey = last.absY;
+
+  if (_currentMapData !== mid) {
+    _currentMapData = mid;
+    window._mapEventData = await electronAPI.loadMapData(GAME_DIR, mid);
+    if (!_switchNames) _switchNames = await electronAPI.loadSwitches(GAME_DIR);
+  }
+  var mapData = window._mapEventData;
+  if (!mapData || !mapData.events) { section.style.display = 'none'; return; }
+
+  var eventsAtPos = [];
+  for (var eid in mapData.events) {
+    var ev = mapData.events[eid];
+    if (ev && Number(ev.x) === ex && Number(ev.y) === ey) {
+      eventsAtPos.push({ id: eid, ev: ev });
+    }
+  }
+  if (!eventsAtPos.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  var html = '';
+  eventsAtPos.forEach(function(item) {
+    var ev = item.ev;
+    html += '<div style="background:#222;border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px;line-height:1.6;">';
+    html += '<div style="color:#aaf;">Pos: ' + ev.x + ',' + ev.y + '</div>';
+    html += '<div><span style="color:#888;">名称: </span><span style="color:#ddd;">' + esc(ev.name || '(无)') + '</span></div>';
+    if (ev.note) html += '<div><span style="color:#888;">描述: </span><span style="color:#9c9;font-size:11px;word-break:break-all;">' + esc(ev.note) + '</span></div>';
+    if (ev.pages) {
+      ev.pages.forEach(function(page, pi) {
+        var listLen = page.list ? page.list.length : 0;
+        html += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #333;">';
+        html += '<span style="color:#fa7;">Page ' + pi + ':</span> ';
+        html += '<span style="color:#999;">事件长度: ' + listLen + '</span>';
+        if (listLen > 0) html += ' <span style="color:#696;">事件解释器</span>';
+
+        var cond = page.conditions || {};
+        if (cond.switch1Valid) {
+          var sId = cond.switch1Id;
+          var sName = (_switchNames && _switchNames[sId]) || ('开关' + sId);
+          var sVal = cond.switch1Value ? 'true' : 'false';
+          html += '<br><span style="color:#8a8;">开关1:</span> ' + sId + ': ' + esc(sName) + ' :' + sVal;
+        }
+        if (cond.switch2Valid) {
+          var sId2 = cond.switch2Id;
+          var sName2 = (_switchNames && _switchNames[sId2]) || ('开关' + sId2);
+          var sVal2 = cond.switch2Value ? 'true' : 'false';
+          html += '<br><span style="color:#8a8;">开关2:</span> ' + sId2 + ': ' + esc(sName2) + ' :' + sVal2;
+        }
+        if (cond.variableValid) {
+          html += '<br><span style="color:#a8a;">变量:</span> ' + cond.variableId + ' >= ' + cond.variableValue;
+        }
+        if (cond.selfSwitchValid) {
+          html += '<br><span style="color:#a8a;">自身开关:</span> ' + (cond.selfSwitchChar || 'A') + ' = ' + (cond.selfSwitchValue ? 'ON' : 'OFF');
+        }
+        if (cond.itemValid) {
+          html += '<br><span style="color:#a8a;">物品:</span> ' + cond.itemId;
+        }
+        if (cond.actorValid) {
+          html += '<br><span style="color:#a8a;">角色:</span> ' + cond.actorId;
+        }
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+  });
+  panel.innerHTML = html;
+}
+
+// Patch updateUI to also refresh event info
+var _origUpdateUI = updateUI;
+updateUI = function() { _origUpdateUI(); updateEventInfo(); };
 
 // ─── 缩放 ─────────────────────────────────────────────────────
 document.getElementById('scrollArea').addEventListener('wheel', function(e) {
@@ -810,21 +919,69 @@ function renderPluginList(list) {
     list.forEach(function(p) {
       var enabled = localStorage.getItem('plugin_' + p.name) !== 'false';
       var safeName = esc(p.name);
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:4px;background:#2a2a2a;border-radius:6px;border-left:3px solid ' + (enabled ? '#4a8bc2' : '#444') + ';">';
-      html += '  <div style="flex:1;min-width:0;">';
-      html += '    <div style="color:#ddd;font-size:13px;">' + safeName + '</div>';
-      html += '    <div style="color:#888;font-size:11px;">' + esc(p.description || '') + '</div>';
-      html += '    <div style="color:#666;font-size:10px;margin-top:2px;">tags: ' + esc(p.tags ? p.tags.join(', ') : '-') + ' | hook: ' + esc(p.hook) + '</div>';
+      var isParallax = p.name === 'ParallaxLayer';
+      var isExpanded = localStorage.getItem('plugin_expand_' + p.name) === 'true';
+      html += '<div class="plugin-card" data-pname="' + safeName + '" style="margin-bottom:4px;">';
+      // 主行
+      html += '  <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#2a2a2a;border-radius:' + (isExpanded && isParallax ? '6px 6px 0 0' : '6px') + ';border-left:3px solid ' + (enabled ? '#4a8bc2' : '#444') + ';">';
+      if (isParallax) {
+        html += '    <span style="cursor:pointer;color:#888;font-size:12px;flex-shrink:0;" onclick="togglePluginExpand(\'' + safeName + '\')">' + (isExpanded ? '▼' : '▶') + '</span>';
+      }
+      html += '    <div style="flex:1;min-width:0;">';
+      html += '      <div style="color:#ddd;font-size:13px;">' + safeName + '</div>';
+      html += '      <div style="color:#888;font-size:11px;">' + esc(p.description || '') + '</div>';
+      html += '      <div style="color:#666;font-size:10px;margin-top:2px;">tags: ' + esc(p.tags ? p.tags.join(', ') : '-') + ' | hook: ' + esc(p.hook) + '</div>';
+      html += '    </div>';
+      html += '    <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;cursor:pointer;">';
+      html += '      <input type="checkbox" ' + (enabled ? 'checked' : '') + ' data-pname="' + safeName + '" style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;" onchange="toggleViewerPlugin(this)">';
+      html += '      <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + (enabled ? '#4a8bc2' : '#444') + ';border-radius:11px;transition:.2s;pointer-events:none;"></span>';
+      html += '      <span style="position:absolute;top:2px;left:' + (enabled ? '20px' : '2px') + ';width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>';
+      html += '    </label>';
       html += '  </div>';
-      html += '  <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;margin-left:8px;cursor:pointer;">';
-      html += '    <input type="checkbox" ' + (enabled ? 'checked' : '') + ' data-pname="' + safeName + '" style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;" onchange="toggleViewerPlugin(this)">';
-      html += '    <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + (enabled ? '#4a8bc2' : '#444') + ';border-radius:11px;transition:.2s;pointer-events:none;"></span>';
-      html += '    <span style="position:absolute;top:2px;left:' + (enabled ? '20px' : '2px') + ';width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>';
-      html += '  </label>';
+      // 子选项
+      if (isExpanded && isParallax) {
+        html += '  <div style="padding:6px 10px 8px 28px;background:#252525;border-radius:0 0 6px 6px;border-left:3px solid ' + (enabled ? '#4a8bc2' : '#444') + ';margin-top:-1px;">';
+        if (_plmLayers && _plmLayers.length > 0) {
+          html += '    <div style="color:#999;font-size:11px;margin-bottom:4px;">图层开关：</div>';
+          _plmLayers.forEach(function(l) {
+            var lk = 'plm_' + l.file;
+            var le = _plmEnabled[lk] !== false;
+            html += '    <label style="display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;border-radius:3px;">';
+            html += '      <input type="checkbox" ' + (le ? 'checked' : '') + ' style="accent-color:#4a8bc2;" onchange="togglePlmLayer(\'' + esc(l.file) + '\', this.checked)">';
+            html += '      <span style="color:#ccc;font-size:12px;">' + esc(l.file) + (l.blend === 1 ? ' 加算' : '') + (l.blend === 3 ? ' 乗算' : '') + '</span>';
+            html += '    </label>';
+          });
+        } else {
+          html += '    <div style="color:#666;font-size:11px;">暂无图层数据（需渲染地图后生成）</div>';
+        }
+        html += '  </div>';
+      }
       html += '</div>';
     });
   }
   document.getElementById('pluginList').innerHTML = html;
+}
+
+function togglePluginExpand(name) {
+  var k = 'plugin_expand_' + name;
+  localStorage.setItem(k, localStorage.getItem(k) !== 'true');
+  // 刷新插件列表（需要重新获取）
+  if (window.electronAPI && window.electronAPI.getPlugins) {
+    electronAPI.getPlugins().then(function(list) { renderPluginList(list); });
+  }
+}
+
+function togglePlmLayer(file, checked) {
+  _plmEnabled['plm_' + file] = checked;
+  if (document.getElementById('showFx').checked) drawFx();
+}
+
+function updatePluginSubOptions() {
+  // 如果插件面板开着，刷新子选项显示
+  var modal = document.getElementById('pluginModal');
+  if (modal && modal.style.display === 'block' && window.electronAPI && window.electronAPI.getPlugins) {
+    electronAPI.getPlugins().then(function(list) { renderPluginList(list); });
+  }
 }
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -842,6 +999,68 @@ async function importPlugin() {
     } else { alert('导入失败: ' + (result.error || '未知错误')); }
   } catch(e) { alert('导入出错: ' + e.message); }
 }
+
+// ─── PLM 视差图层 ──────────────────────────────────────────
+var _plmEnabled = {}; // 按文件名缓存启用状态
+
+function getPlmDir(mapId) {
+  return PROJECT_DIR + '/maps/Map' + String(mapId).padStart(4, '0') + '_plm';
+}
+
+function loadPlmLayers(mapId) {
+  _plmLayers = null;
+  _plmLoaded = false;
+  fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  var plmDir = getPlmDir(mapId);
+  if (!window.electronAPI || !window.electronAPI.readDataFile) return;
+  electronAPI.readDataFile(plmDir + '/info.json').then(function(json) {
+    if (!json) return;
+    try {
+      var meta = JSON.parse(json);
+      var loaded = 0;
+      meta.forEach(function(layer) {
+        var key = 'plm_' + layer.file;
+        if (_plmEnabled[key] === undefined) _plmEnabled[key] = true;
+        var img = new Image();
+        img.onload = function() {
+          layer.img = img;
+          layer.key = key;
+          loaded++;
+          if (loaded === meta.length) {
+            _plmLayers = meta;
+            _plmLoaded = true;
+            if (document.getElementById('showFx').checked) drawFx();
+            // 通知插件面板刷新
+            if (typeof updatePluginSubOptions === 'function') updatePluginSubOptions();
+          }
+        };
+        img.src = 'file:///' + plmDir.replace(/\\/g, '/') + '/' + layer.file + '.png';
+      });
+    } catch(e) {}
+  }).catch(function() {});
+}
+
+function drawFx() {
+  fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  if (!_plmLayers) return;
+  _plmLayers.forEach(function(layer) {
+    if (!layer.img) return;
+    if (_plmEnabled[layer.key] === false) return;
+    fctx.globalAlpha = (layer.opacity || 255) / 255;
+    if (layer.blend === 1) fctx.globalCompositeOperation = 'lighter';
+    else if (layer.blend === 3) fctx.globalCompositeOperation = 'multiply';
+    else fctx.globalCompositeOperation = 'source-over';
+    fctx.drawImage(layer.img, 0, 0);
+  });
+  fctx.globalCompositeOperation = 'source-over';
+  fctx.globalAlpha = 1;
+}
+
+// 特效开关
+document.getElementById('showFx').addEventListener('change', function() {
+  if (this.checked) drawFx();
+  else fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+});
 
 // ─── 启动 ─────────────────────────────────────────────────────
 loadData();

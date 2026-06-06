@@ -203,6 +203,25 @@ ipcMain.handle('read-data-file', (event, filePath) => {
   return fs.readFileSync(filePath, 'utf8');
 });
 
+ipcMain.handle('load-map-data', (event, gameDir, mapId) => {
+  if (!gameDir) return null;
+  const p = path.join(gameDir, 'data', 'Map' + String(mapId).padStart(3, '0') + '.json');
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
+  } catch (e) { return null; }
+});
+
+ipcMain.handle('load-switches', (event, gameDir) => {
+  if (!gameDir) return null;
+  const p = path.join(gameDir, 'data', 'System.json');
+  if (!fs.existsSync(p)) return null;
+  try {
+    const sys = JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
+    return sys.switches || [];
+  } catch (e) { return null; }
+});
+
 ipcMain.handle('get-parallax-maps', (event, gameDir) => {
   if (!gameDir) return {};
   const result = {};

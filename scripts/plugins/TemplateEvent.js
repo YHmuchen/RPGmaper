@@ -2,9 +2,6 @@
  * TemplateEvent 插件
  * 模拟 TemplateEvent.js 的行为：将 <TE:名称> 标签替换为
  * Map001 中同名模板事件的精灵图。
- *
- * 目前支持：<TE:LampLittle> → !fsm_Flame09（蜡烛火焰）
- * 可根据需要扩展。
  */
 const fs = require('fs');
 const path = require('path');
@@ -44,7 +41,7 @@ module.exports = {
   process: function(ev, ctx) {
     if (!ev.note) return;
     // 匹配 <TE:模板名>
-    var m = ev.note.match(/<TE:(\w+)>/);
+    var m = ev.note.match(/<TE:([^>]+)>/);
     if (!m) return;
     var templateName = m[1];
     // 获取游戏目录（由 render-maps.js 在加载时设置的全局变量）
@@ -71,8 +68,11 @@ module.exports = {
     // 只替换有实际精灵图的模板（空字符或 tileId=0 且无 charName 的不算）
     var hasSprite = tmplImg.characterName && tmplImg.characterName.length > 0;
     var hasTile = tmplImg.tileId && tmplImg.tileId > 0;
-    if (!hasSprite && !hasTile) return;
-
+    if (!hasSprite && !hasTile) {
+      // 模板无精灵图（纯标记事件），跳过渲染
+      ctx._skipRender = true;
+      return;
+    }
     // 将替换信息存入 ctx，渲染器会重新提取帧
     ctx._templateImage = {
       characterName: tmplImg.characterName || '',

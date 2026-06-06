@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMapDimensions: (gameDir, mapId) => ipcRenderer.invoke('get-map-dimensions', gameDir, mapId),
   readDataFile: (path) => ipcRenderer.invoke('read-data-file', path),
   getParallaxMaps: (gameDir) => ipcRenderer.invoke('get-parallax-maps', gameDir),
+  loadMapData: (gameDir, mapId) => ipcRenderer.invoke('load-map-data', gameDir, mapId),
+  loadSwitches: (gameDir) => ipcRenderer.invoke('load-switches', gameDir),
 
   // 事件
   onProjectAdded: (cb) => ipcRenderer.on('project-added', (e, d) => cb(d)),

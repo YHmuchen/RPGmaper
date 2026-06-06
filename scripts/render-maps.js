@@ -18,7 +18,7 @@ function readJSON(fp) {
 }
 
 // ─── 插件系统 ──────────────────────────────────────────────
-const VALID_HOOKS = ['mapStart', 'mapEnd', 'beforeSprite', 'eventSprite'];
+const VALID_HOOKS = ['mapStart', 'mapEnd', 'beforeSprite', 'eventSprite', 'postRender'];
 const PLUGINS = [];
 (function loadPlugins() {
   const dir = path.join(__dirname, 'plugins');
@@ -65,6 +65,18 @@ const GAME_DIR = (() => {
 })();
 global['PLUGIN_GAME_DIR'] = GAME_DIR;
 
+// 加密密钥（供插件解密图片用）
+const ENC_KEY_BYTES = (() => {
+  try {
+    const sys = readJSON(GAME_DIR + '/data/System.json');
+    const key = sys.encryptionKey || '';
+    return key.length >= 32 ? key.match(/.{2}/g).map(h => parseInt(h, 16)) : [];
+  } catch (e) {
+    return [];
+  }
+})();
+global['PLUGIN_ENC_KEY'] = ENC_KEY_BYTES;
+
 // 项目目录：按项目名分开放，避免混杂
 const PROJECT_DIR = (() => {
   const base = path.resolve(__dirname, '..', 'maps', 'projects');
@@ -76,17 +88,6 @@ const OUT_DIR       = PROJECT_DIR + '/maps/';
 const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';
 
 const PARALLAX_IMG_DIR = GAME_DIR + '/img/parallaxes/';
-
-// 加密密钥（来自 System.json）
-const ENC_KEY_BYTES = (() => {
-  try {
-    const sys = readJSON(GAME_DIR + '/data/System.json');
-    const key = sys.encryptionKey || '';
-    return key.length >= 32 ? key.match(/.{2}/g).map(h => parseInt(h, 16)) : [];
-  } catch (e) {
-    return [];
-  }
-})();
 
 // ─── Tile 类型判定 ─────────────────────────────────────────────
 const isA1   = id => id >= TILE_ID_A1  && id < TILE_ID_A2;
@@ -467,6 +468,8 @@ async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
       // 运行 beforeSprite 钩子插件（可替换精灵图、修改提取方式）
       const ctx = {};
       PLUGINS.filter(p => p.hook === 'beforeSprite').forEach(p => p.process(ev, ctx));
+      // 插件标记跳过渲染（如无精灵图的模板标记事件）
+      if (ctx._skipRender) continue;
       // 支持插件替换精灵（如 TemplateEvent 的 <TE:xxx> 替换）
       var ti = ctx._templateImage;
       const spriteName = (ti && ti.characterName) || img.characterName;
@@ -490,7 +493,7 @@ async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
       if (!frame) continue;
       // 运行 eventSprite 钩子插件（可修改 ctx.shiftX/Y 等）
       PLUGINS.filter(p => p.hook === 'eventSprite').forEach(p => p.process(ev, ctx));
-      // 锚点 (0.5, 1.0)：水平居中 + 底部对齐 + 插件偏移
+      // 锚点：底部对齐 + 插件偏移
       const offX = Math.max(0, frame.w - TILE) / 2;
       const offY = Math.max(0, frame.h - TILE);
       blendRect(frame.buf, frame.w, 0, 0, buf, outW,
@@ -658,6 +661,14 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   // 事件精灵（NPC、门、物品）叠加到合拼图
   var evCount = await renderEvents(lowerBuf, outW, outH, map, tsNames, tsImgs);
   if (evCount > 0) process.stdout.write(`    ${evCount} 个事件精灵已渲染\n`);
+
+  // 运行 postRender 钩子插件（叠加视差图层、滤镜等）
+  for (var pi = 0; pi < PLUGINS.length; pi++) {
+    var p = PLUGINS[pi];
+    if (p.hook === 'postRender' && p.process) {
+      await p.process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR });
+    }
+  }
 
   // 输出合拼 PNG
   const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
