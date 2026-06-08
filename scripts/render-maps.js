@@ -76,6 +76,8 @@ const ENC_KEY_BYTES = (() => {
   }
 })();
 global['PLUGIN_ENC_KEY'] = ENC_KEY_BYTES;
+// 时间变量（供 TemplateEvent/TileTime 选页用）：0=朝,1=昼,2=夕,3=夜
+global['TIME_VARIABLE_31'] = parseInt(process.env.TIME_VAR_31, 10) || 1;
 
 // 项目目录：按项目名分开放，避免混杂
 const PROJECT_DIR = (() => {
@@ -605,6 +607,14 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   }
   const bgKey = Object.keys(bgFreq).reduce((a, b) => bgFreq[a] > bgFreq[b] ? a : b);
   const bgVals = bgKey.split(',').map(Number);
+
+  // mapStart 钩子（插件可修改 map.data 等渲染前置数据）
+  for (var msp = 0; msp < PLUGINS.length; msp++) {
+    var mp = PLUGINS[msp];
+    if (mp.hook === 'mapStart' && mp.process) {
+      mp.process({ map: map, mapId: mapId, gameDir: GAME_DIR, tsNames: tsNames, tilesetId: map.tilesetId });
+    }
+  }
 
   // 两个缓冲区: lower 层先绘制, upper 层后合成上去
   const lowerBuf = Buffer.alloc(outW * outH * 4, 0);
