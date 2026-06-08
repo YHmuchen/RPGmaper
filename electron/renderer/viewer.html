@@ -267,7 +267,15 @@ function loadMap(mapId, entrySource) {
     }).catch(function() {});
   }
 
+  var _fallbackTried = false;
   img.onerror = function() {
+    if (!_fallbackTried) {
+      // 时段后缀文件不存在时回退到基础版
+      var basePath = 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '.png';
+      _fallbackTried = true;
+      img.src = basePath;
+      return;
+    }
     document.getElementById('status').textContent = '地图 ' + mapId + ' 不存在，请先生成地图数据';
   };
   img.onload = function() {
