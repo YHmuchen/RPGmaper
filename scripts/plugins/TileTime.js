@@ -25,15 +25,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// 内置替换表（エニシアと契約紋 专用）
-// key = tileset名, value = [{ day: tileId, night: tileId, evening: tileId }]
-// A4: tileId = 5888 + kind*48 + shape
-// 分析: 6520(昼窗)RGB(144,138,134) vs 6616(候选暗窗)RGB(65,48,18)
-var BUILTIN_MAP = {
-  'fsm_Inside01_A4': [
-    { day: 6520, night: 6616, evening: 6568 },  // 窗 shape=8: 昼kind=13→夜kind=15→夕kind=14
-  ]
-};
+// 内置替换表（需按游戏配置）
+// 格式: { 'tileset名': [ { day: tileId, night: tileId, evening: tileId } ] }
+var BUILTIN_MAP = {};
 
 function loadTileMap(gameDir) {
   var fp = path.join(gameDir, 'tiletime.json');
