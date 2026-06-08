@@ -225,7 +225,8 @@ function resolveMapPath(mapId) {
     const safe = pName.replace(/[\/:*?"<>|]/g, '_');
     return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/parallax/parallax_' + safe + '.png';
   }
-  return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '.png';
+  var timeSuffix = ({ evening: '_evening', night: '_night' }[_timePeriod]) || '';
+  return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + timeSuffix + '.png';
 }
 
 // 地图导航历史 & 传送点高亮
@@ -1229,12 +1230,14 @@ function applyMapTone() {
   }
 }
 
-// 时段切换// 时段切换
+// 时段切换
 document.getElementById('timeSelect').value = _timePeriod;
 document.getElementById('timeSelect').addEventListener('change', function() {
   _timePeriod = this.value;
   localStorage.setItem('rpgmaper_time', _timePeriod);
-  applyMapTone();
+  // 重新加载地图（时段不同可能 tile 不同）
+  var mid = window._currentMapId;
+  if (mid) loadMap(mid);
 });
 
 // Patch loadMap 时段切换时也重绘色调

@@ -78,6 +78,8 @@ const ENC_KEY_BYTES = (() => {
 global['PLUGIN_ENC_KEY'] = ENC_KEY_BYTES;
 // 时间变量（供 TemplateEvent/TileTime 选页用）：0=朝,1=昼,2=夕,3=夜
 global['TIME_VARIABLE_31'] = parseInt(process.env.TIME_VAR_31, 10) || 1;
+// 时段后缀（用于输出不同时段的 PNG）
+var TIME_SUFFIX = ({2:'_evening', 3:'_night'}[global['TIME_VARIABLE_31']]) || '';
 
 // 项目目录：按项目名分开放，避免混杂
 const PROJECT_DIR = (() => {
@@ -680,8 +682,8 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     }
   }
 
-  // 输出合拼 PNG
-  const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
+  // 输出合拼 PNG（时段后缀：_evening / _night）
+  const outName = 'Map' + String(mapId).padStart(4, '0') + TIME_SUFFIX + '.png';
   const outPath = OUT_DIR + '/' + outName;
   await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
 
@@ -697,7 +699,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 // ─── 渲染视差地图 ──────────────────────────────────────────────
 async function renderParallaxMap(map, mapId, tilesets) {
   const pName = map.parallaxName;
-  const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
+  const outName = 'Map' + String(mapId).padStart(4, '0') + TIME_SUFFIX + '.png';
 
   // 解密视差图
   const data = decryptParallaxImage(pName);
