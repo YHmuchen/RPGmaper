@@ -148,6 +148,20 @@ ipcMain.handle('add-project', async () => {
   return scanProjects();
 });
 
+ipcMain.handle('set-project-game-dir', async (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry) return false;
+  var result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: '选择游戏目录 - ' + entry.name,
+  });
+  if (result.canceled) return false;
+  entry.gameDir = result.filePaths[0].replace(/\\/g, '/');
+  saveProjects(index);
+  return true;
+});
+
 ipcMain.handle('get-project-by-id', (event, projectId) => {
   var index = loadProjects();
   var entry = index[String(projectId)];
