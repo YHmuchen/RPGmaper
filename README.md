@@ -28,9 +28,13 @@
 
 ## 📸 效果展示
 
-Map0003 (61×101) | Map0016 (35×52) | Map0120 (70×50)
-:---:|:---:|:---:
-![Map3](docs/sample_Map0003.png) | ![Map16](docs/sample_Map0016.png) | ![Map120](docs/sample_Map0120.png)
+エニシアと契約紋 ～馬蹄通りの小聖女～ Map22（教会礼拜堂）各时段渲染效果：
+
+朝 (0) | 昼 (1) | 夕方 (2) | 夜 (3)
+:---:|:---:|:---:|:---:
+![朝](docs/map22_morning.png) | ![昼](docs/map22_day.png) | ![夕](docs/map22_evening.png) | ![夜](docs/map22_night.png)
+
+插件系统实现窗户/辉光昼夜切换、蜡烛分页、PLM 视差图层叠加。
 
 ---
 
