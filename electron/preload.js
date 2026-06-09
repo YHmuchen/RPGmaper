@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // 项目管理
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  setProjectGameDir: (id) => ipcRenderer.invoke('set-project-game-dir', id),
   scanProjects: () => ipcRenderer.invoke('scan-projects'),
   addProject: () => ipcRenderer.invoke('add-project'),
   getProjectById: (id) => ipcRenderer.invoke('get-project-by-id', id),

@@ -198,6 +198,19 @@ async function runOne(projectId, script) {
   }
 }
 
+async function ensureGameDir(projectId) {
+  var info = await electronAPI.getProjectById(projectId);
+  if (!info) { await electronAPI.scanProjects(); info = await electronAPI.getProjectById(projectId); }
+  if (!info) { log('项目未找到', 'err'); return null; }
+  if (!info.gameDir) {
+    log('项目「' + info.name + '」未关联游戏目录，请选择', 'info');
+    var ok = await electronAPI.setProjectGameDir(projectId);
+    if (!ok) { log('取消选择', 'err'); return null; }
+    info = await electronAPI.getProjectById(projectId);
+  }
+  return info;
+}
+
 async function runAll(projectId) {
   var info = await electronAPI.getProjectById(projectId);
   if (!info) { await electronAPI.scanProjects(); info = await electronAPI.getProjectById(projectId); }
