@@ -83,34 +83,8 @@ module.exports = {
       if (meta.length > 0) {
         fs.writeFileSync(path.join(plmDir, 'info.json'), JSON.stringify(meta, null, 2), 'utf8');
 
-        // ── 按时段透明度将 PLM 图层合入最终渲染图 ──
-        // 时段因子：昼=0（不显示）、夕方=0.35、夜=1.0
-        var _tv = global['TIME_VARIABLE_31'];
-        var timeFactor = (_tv === 3) ? 1.0 : 0;
-        if (timeFactor > 0) try {
-          var compositeOps = [];
-          for (var ci = 0; ci < layers.length; ci++) {
-            var cl = layers[ci];
-            var clPath = path.join(plmDir, cl.file + '.png');
-            if (!fs.existsSync(clPath)) continue;
-            var blendMode = cl.blend === 1 ? 'add' : (cl.blend === 3 ? 'multiply' : 'over');
-            compositeOps.push({
-              input: clPath,
-              blend: blendMode,
-              opacity: ((cl.opacity || 255) / 255) * timeFactor,
-            });
-          }
-          if (compositeOps.length > 0 && ctx.outputPath) {
-            try {
-              var imgBuf = await sharp(ctx.outputPath).composite(compositeOps).png().toBuffer();
-              fs.writeFileSync(ctx.outputPath, imgBuf);
-                          } catch(ce2) { console.error('[PLM DEBUG] composite ERROR:', ce2.message); }
-          }
-        } catch(ce) {
-          console.error("[ParallaxLayer] PLM composite failed:", ce.message);
-        }
-
         // ── 叠加 MapTone 色调（基于 MAPTYPE 和时段） ──
+        var _tv = global['TIME_VARIABLE_31'];
         var mapNote = ctx.map && ctx.map.note || "";
         var mapType = (mapNote.match(/<MAPTYPE:\s*(\w+)\s*>/) || [])[1] || "";
         if (mapType) {
