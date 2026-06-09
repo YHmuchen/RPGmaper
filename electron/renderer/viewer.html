@@ -1065,9 +1065,9 @@ function loadPlmLayers(mapId) {
           if (loaded === meta.length) {
             _plmLayers = meta;
             _plmLoaded = true;
-            if (document.getElementById('showFx').checked) drawFx();
-            // PLM 合成后重绘色调（确保色调从含 PLM 的 fxCanvas 取像素）
+            // PLM 合成后绘制（applyMapTone 内部会调 drawFx）
             if (_toneEnabled && typeof applyMapTone === 'function') applyMapTone();
+            else if (document.getElementById('showFx').checked) drawFx();
             // 通知插件面板刷新
             if (typeof updatePluginSubOptions === 'function') updatePluginSubOptions();
           }

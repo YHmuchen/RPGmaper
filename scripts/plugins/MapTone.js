@@ -10,7 +10,6 @@
 module.exports = {
   name: 'MapTone',
   description: 'CE#16 全局色调模拟（昼/夕方/夜，查看器专用）',
-  hook: 'mapStart',
   tags: ['MAPTYPE', '色调', 'CE16', 'project:3'],
 
   process: function(/* unused */) {
