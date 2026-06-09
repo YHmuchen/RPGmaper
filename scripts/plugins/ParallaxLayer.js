@@ -37,8 +37,11 @@ module.exports = {
       if (!m) continue;
       var blendMatch = ev.note.match(/<PLM_Blend:\s*(\d+)\s*>/);
       var opaMatch = ev.note.match(/<PLM_Opacity:\s*(\d+)\s*>/);
+      var fileName = m[1];
+      // 防止路径穿越：只允许字母数字、下划线、连字符、点
+      if (!/^[\w.\-]+$/.test(fileName)) continue;
       layers.push({
-        file: m[1],
+        file: fileName,
         blend: blendMatch ? parseInt(blendMatch[1], 10) : 0,
         opacity: opaMatch ? parseInt(opaMatch[1], 10) : 255,
       });

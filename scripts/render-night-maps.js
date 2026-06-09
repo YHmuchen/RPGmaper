@@ -76,10 +76,15 @@ function main() {
     });
     if (result.status !== 0) {
       console.error(`❌ 夜间渲染失败 (地图 ${batch[0]}-${batch[batch.length-1]})`);
+      process.exitCode = 1;
     }
   }
 
-  console.log(`✅ 夜间渲染完成: ${nightMapIds.length} 张地图`);
+  if (process.exitCode) {
+    console.log(`⚠️ 夜间渲染部分失败: ${nightMapIds.length} 张地图`);
+  } else {
+    console.log(`✅ 夜间渲染完成: ${nightMapIds.length} 张地图`);
+  }
 }
 
 main();

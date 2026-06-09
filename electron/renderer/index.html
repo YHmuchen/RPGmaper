@@ -199,6 +199,7 @@ async function runAll(projectName) {
   var pipelineOk = true;
   for (var pi = 0; pi < pipeline.length; pi++) {
     var step = pipeline[pi];
+    if (!pipelineOk) { log(`- ${step.label}: 前置步骤失败跳过`, 'warn'); continue; }
     log(`▶ ${step.label}...`, 'info');
     var result = await electronAPI.runScript(step.name, gameDir);
     if (result.skipped) {
@@ -207,8 +208,7 @@ async function runAll(projectName) {
       log(`✔ ${step.label} 完成`, 'done');
     } else {
       log(`✗ ${step.label} 失败`, 'err');
-      if (step.name === 'tilesets') pipelineOk = false;
-      if (!pipelineOk && (step.name === 'maps' || step.name === 'night')) continue;
+      pipelineOk = false;
     }
   }
 

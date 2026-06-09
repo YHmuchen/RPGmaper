@@ -1080,17 +1080,18 @@ function loadPlmLayers(mapId) {
 
 function drawFx() {
   fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-  if (!_plmLayers) return;
-  // 先把地图画到底层
+  // 先把地图画到底层（无论是否有 PLM 图层）
   fctx.drawImage(mapCanvas, 0, 0);
-  // 逐像素叠加 PLM 图层
-  // 时段透明度：光照/阴影层随昼→夜渐变
-  var timeFactor = _toneEnabled ? ({day: 0, evening: 0.35, night: 1.0}[_timePeriod] || 0) : 1;
+
   var w = fxCanvas.width, h = fxCanvas.height;
   var totalPx = w * h * 4;
   var baseData = fctx.getImageData(0, 0, w, h);
   var bp = baseData.data;
-  _plmLayers.forEach(function(layer) {
+
+  if (_plmLayers) {
+    // 时段透明度：光照/阴影层随昼→夜渐变
+    var timeFactor = _toneEnabled ? ({day: 0, evening: 0.35, night: 1.0}[_timePeriod] || 0) : 1;
+    _plmLayers.forEach(function(layer) {
     if (!layer.img) return;
     if (_plmEnabled[layer.key] === false) return;
     // 把 PLM 图层画到临时 canvas 取像素
@@ -1146,7 +1147,8 @@ function drawFx() {
       }
     }
   });
-  // 色调合成（在 PLM 之上叠加全局色调）
+  }
+  // 色调合成（始终运行，在 PLM 之上叠加全局色调）
   if (_toneEnabled && typeof _currentTone !== "undefined" && _currentTone) {
     var rOff = _currentTone[0], gOff = _currentTone[1], bOff = _currentTone[2];
     var grayAmt = (_currentTone[3] || 0) / 255;

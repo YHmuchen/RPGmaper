@@ -82,7 +82,8 @@ const ENC_KEY_BYTES = (() => {
 })();
 global['PLUGIN_ENC_KEY'] = ENC_KEY_BYTES;
 // 时间变量（供 TemplateEvent 选页用）：0=朝,1=昼,2=夕,3=夜
-global['TIME_VARIABLE_31'] = parseInt(process.env.TIME_VAR_31, 10) || 1;
+var _tv = parseInt(process.env.TIME_VAR_31, 10);
+global['TIME_VARIABLE_31'] = isNaN(_tv) ? 1 : _tv;
 global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
