@@ -232,7 +232,8 @@ async function runAll(projectId) {
     } else if (result.ok) {
       log(`✔ ${step.label} 完成`, 'done');
     } else {
-      log(`✗ ${step.label} 失败`, 'err');
+      var errMsg = result.error ? result.error.substring(0, 200) : '';
+      log(`✗ ${step.label} 失败: ${errMsg}`, 'err');
       pipelineOk = false;
     }
   }
