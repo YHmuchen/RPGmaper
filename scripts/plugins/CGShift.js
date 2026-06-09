@@ -7,7 +7,7 @@ module.exports = {
   name: 'CGShift',
   description: '<CGシフト:A,X,Y> 像素偏移',
   hook: 'eventSprite',
-  tags: ['CGシフト', 'project:エニシアと契約紋 〜馬蹄通りの小聖女〜'],,
+  tags: ['CGシフト', 'project:エニシアと契約紋 ～馬蹄通りの小聖女～'],,
 
   process: function(ev, ctx) {
     if (!ev.note) return;

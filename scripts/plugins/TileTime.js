@@ -13,7 +13,7 @@ module.exports = {
   name: 'TileTime',
   description: '根据时段替换地图 tile（窗户昼夜变化）',
   hook: 'mapStart',
-  tags: ['TIME_VAR', 'tile', 'project:エニシアと契約紋 〜馬蹄通りの小聖女〜'],,
+  tags: ['TIME_VAR', 'tile', 'project:エニシアと契約紋 ～馬蹄通りの小聖女～'],,
 
   process: function(ctx) {
     var map = ctx.map;

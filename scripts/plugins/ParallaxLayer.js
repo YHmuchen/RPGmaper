@@ -20,7 +20,7 @@ module.exports = {
   name: 'ParallaxLayer',
   description: '<PLM:file> 视差图层（可开关）',
   hook: 'postRender',
-  tags: ['PLM', 'PLM_Blend', 'project:エニシアと契約紋 〜馬蹄通りの小聖女〜'],,
+  tags: ['PLM', 'PLM_Blend', 'project:エニシアと契約紋 ～馬蹄通りの小聖女～'],,
 
   process: async function(ctx) {
     var gameDir = ctx.gameDir;

@@ -42,7 +42,7 @@ module.exports = {
   name: 'TemplateEvent',
   description: '模拟 <TE:名称> 模板事件替换',
   hook: 'beforeSprite',
-  tags: ['TE', 'project:エニシアと契約紋 〜馬蹄通りの小聖女〜'],,
+  tags: ['TE', 'project:エニシアと契約紋 ～馬蹄通りの小聖女～'],,
 
   process: function(ev, ctx) {
     if (!ev.note) return;
