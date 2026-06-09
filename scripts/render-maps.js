@@ -21,6 +21,27 @@ function readJSON(fp) {
 const VALID_HOOKS = ['mapStart', 'mapEnd', 'beforeSprite', 'eventSprite', 'postRender'];
 const PLUGINS = [];
 const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
+
+// 检查插件是否对当前项目生效
+function pluginMatchesProject(p, projectName) {
+  if (!p.tags || p.tags.length === 0) return true;
+  var hasProject = false;
+  for (var ti = 0; ti < p.tags.length; ti++) {
+    var t = p.tags[ti];
+    if (t === 'global') return true;
+    if (t.indexOf('project:') === 0) {
+      hasProject = true;
+      // project: 后跟项目名——完全匹配或在项目名前缀匹配
+      var pn = t.slice(8).trim();
+      if (pn === projectName) return true;
+    }
+  }
+  // 有 project: 标签但都不匹配 → 跳过
+  if (hasProject) return false;
+  // 无 project: 标签也无 global → 视为全局
+  return true;
+}
+
 (function loadPlugins() {
   const dir = path.join(__dirname, 'plugins');
   if (!fs.existsSync(dir)) return;
@@ -33,7 +54,7 @@ const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
           return;
         }
         PLUGINS.push(p);
-        // 按钩子分组缓存
+        // 按钩子分组缓存（由 loadPluginsForProject 按项目过滤后使用）
         if (p.hook) {
           (HOOKS[p.hook] || (HOOKS[p.hook] = [])).push(p);
         }
@@ -43,6 +64,15 @@ const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
     }
   });
 })();
+
+// 按项目名过滤 HOOKS（只保留匹配项目的插件）
+function loadPluginsForProject(projectName) {
+  Object.keys(HOOKS).forEach(function(hook) {
+    HOOKS[hook] = HOOKS[hook].filter(function(p) {
+      return pluginMatchesProject(p, projectName);
+    });
+  });
+}
 
 // ─── 常量 ───────────────────────────────────────────────────────
 const TILE = 48;
@@ -87,11 +117,11 @@ global['TIME_VARIABLE_31'] = isNaN(_tv) ? 1 : _tv;
 global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
-const PROJECT_DIR = (() => {
-  const base = path.resolve(__dirname, '..', 'maps', 'projects');
-  const name = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
-  return path.join(base, name);
-})();
+const PROJECT_NAME = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+const PROJECT_DIR = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), PROJECT_NAME);
+
+// 按项目名过滤插件（只加载 global 或 project:当前项目 的插件）
+loadPluginsForProject(PROJECT_NAME);
 const TS_DIR        = PROJECT_DIR + '/tilesets/';
 const OUT_DIR       = PROJECT_DIR + '/maps/';
 const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';

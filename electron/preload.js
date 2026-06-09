@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addProject: () => ipcRenderer.invoke('add-project'),
   runScript: (script, gameDir) => ipcRenderer.invoke('run-script', script, gameDir),
   deleteProject: (name) => ipcRenderer.invoke('delete-project', name),
+  clearMaps: (name) => ipcRenderer.invoke('clear-maps', name),
 
   // 查看器
   openViewer: (name, gameDir, projectDir) => ipcRenderer.invoke('open-viewer', name, gameDir, projectDir),

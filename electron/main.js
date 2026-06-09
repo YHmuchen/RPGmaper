@@ -183,6 +183,18 @@ ipcMain.handle('delete-project', (event, name) => {
   return scanProjects();
 });
 
+ipcMain.handle('clear-maps', (event, name) => {
+  const dir = path.resolve(PROJECTS_DIR, name);
+  if (!dir.startsWith(path.resolve(PROJECTS_DIR))) return scanProjects();
+  const mapsDir = path.join(dir, 'maps');
+  const tilesetsDir = path.join(dir, 'tilesets');
+  const parallaxDir = path.join(dir, 'parallax');
+  if (fs.existsSync(mapsDir)) fs.rmSync(mapsDir, { recursive: true, force: true });
+  if (fs.existsSync(tilesetsDir)) fs.rmSync(tilesetsDir, { recursive: true, force: true });
+  if (fs.existsSync(parallaxDir)) fs.rmSync(parallaxDir, { recursive: true, force: true });
+  return scanProjects();
+});
+
 
 // ─── 查看器 IPC ──────────────────────────────────────────────
 ipcMain.handle('open-viewer', (event, projectName, gameDir, projectDir) => {
@@ -322,7 +334,7 @@ ipcMain.handle('get-plugins', () => {
       const tags = val(/tags:\s*\[([^\]]+)\]/, '');
       const tagList = tags ? tags.split(',').map(t => t.trim().replace(/['"]/g, '')) : [];
       const enabled = src.includes('process:') && src.includes('function');
-      return { file: f, name, description: desc, hook, tags: tagList, enabled };
+      return { file: f, name, description: desc, hook, tags: tagList, enabled, project: tagList.filter(function(t){return t.indexOf('project:')===0;}).map(function(t){return t.slice(8);})[0] || '' };
     } catch (e) {
       return { file: f, name: f.replace('.js', ''), description: '读取失败', hook: '?', tags: [], enabled: false };
     }
@@ -333,7 +345,7 @@ ipcMain.handle('import-plugin', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [{ name: '插件文件', extensions: ['js'] }],
-    title: '导入插件',
+    title: '导入全局插件',
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   const srcPath = result.filePaths[0];

@@ -10,7 +10,7 @@ module.exports = {
   name: 'NightRender',
   description: '自动检测并渲染夜间版地图',
   hook: 'mapEnd',
-  tags: ['night', 'pipeline'],
+  tags: ['night', 'pipeline', 'global'],,
   scripts: [
     { name: 'night', file: 'scripts/render-night-maps.js', label: '夜间地图' },
   ],
