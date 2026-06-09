@@ -120,11 +120,33 @@ ipcMain.handle('run-script', (event, scriptName, gameDir) => {
     maps: { file: 'scripts/render-maps.js', label: '渲染地图' },
   };
 
+  // 从插件中收集注册的脚本
+  const pluginDir = path.join(PROJECT_ROOT, 'scripts', 'plugins');
+  if (fs.existsSync(pluginDir)) {
+    fs.readdirSync(pluginDir).filter(f => f.endsWith('.js')).forEach(f => {
+      try {
+        const src = fs.readFileSync(path.join(pluginDir, f), 'utf8');
+        const sa = src.match(/scripts\s*:\s*\[([\s\S]*?)\]\s*,/);
+        if (!sa) return;
+        const se = sa[1].match(/\{\s*name\s*:\s*'([^']+)'\s*,\s*file\s*:\s*'([^']+)'[^}]*\}/g);
+        if (!se) return;
+        se.forEach(function(e) {
+          const n = e.match(/name\s*:\s*'([^']+)'/);
+          const f = e.match(/file\s*:\s*'([^']+)'/);
+          const l = e.match(/label\s*:\s*'([^']+)'/);
+          if (n && f && !scripts[n[1]]) {
+            scripts[n[1]] = { file: f[1], label: l ? l[1] : n[1] };
+          }
+        });
+      } catch(e) { console.error('[plugin] 解析失败:', f, e.message); }
+    });
+  }
+
   const s = scripts[scriptName];
-  if (!s) return { ok: false, error: '未知脚本' };
+  if (!s || !s.file) return { ok: true, skipped: true };
 
   const scriptPath = path.join(PROJECT_ROOT, s.file);
-  if (!fs.existsSync(scriptPath)) return { ok: false, error: '找不到' + s.file };
+  if (!fs.existsSync(scriptPath)) return { ok: true, skipped: true };
 
   return new Promise(resolve => {
     let timer = setTimeout(() => { proc.kill(); resolve({ ok: false, error: "脚本执行超时" }); }, 600000);
@@ -179,6 +201,22 @@ ipcMain.handle('open-viewer', (event, projectName, gameDir, projectDir) => {
     query: { name: projectName, gameDir: gameDir, projectDir: absProjectDir },
   });
   return true;
+});
+
+ipcMain.handle('load-viewer-plugins', (event, projectDir) => {
+  var dirs = [
+    path.join(__dirname, 'renderer', 'viewer-plugins'),
+    path.join(projectDir, 'viewer-plugins'),
+  ];
+  var result = [];
+  dirs.forEach(function(d) {
+    if (fs.existsSync(d)) {
+      fs.readdirSync(d).filter(function(f) { return f.endsWith('.js'); }).forEach(function(f) {
+        if (result.indexOf(f) < 0) result.push(f);
+      });
+    }
+  });
+  return result;
 });
 
 ipcMain.handle('load-map-infos', (event, gameDir) => {
@@ -238,6 +276,35 @@ ipcMain.handle('get-parallax-maps', (event, gameDir) => {
     } catch (e) {}
   }
   return result;
+});
+
+ipcMain.handle('get-pipeline', () => {
+  var steps = [
+    { name: 'tilesets', label: '导出 tileset' },
+    { name: 'maps', label: '渲染地图' },
+    { name: 'transfers', label: '提取传送点' },
+  ];
+  var pd = path.join(PROJECT_ROOT, 'scripts', 'plugins');
+  if (fs.existsSync(pd)) {
+    fs.readdirSync(pd).filter(f => f.endsWith('.js')).forEach(f => {
+      try {
+        var src = fs.readFileSync(path.join(pd, f), 'utf8');
+        var pm = src.match(/pipeline\s*:\s*\{[^}]*after\s*:\s*'([^']+)'/);
+        if (!pm) return;
+        var sa = src.match(/scripts\s*:\s*\[([\s\S]*?)\]\s*,/);
+        if (!sa) return;
+        var se = sa[1].match(/name\s*:\s*'([^']+)'\s*,\s*file\s*:\s*'([^']+)'\s*,\s*label\s*:\s*'([^']+)'/);
+        if (!se) return;
+        for (var si = 0; si < steps.length; si++) {
+          if (steps[si].name === pm[1]) {
+            steps.splice(si + 1, 0, { name: se[1], label: se[3] });
+            break;
+          }
+        }
+      } catch(e) {}
+    });
+  }
+  return steps;
 });
 
 // ─── 插件 ──────────────────────────────────────────────────────

@@ -1,42 +1,14 @@
 /**
- * TileTime 插件
- * 根据时段（Variable 31）替换地图 tile，实现窗户等贴图昼夜变化。
+ * TileTime.js — <TE上書き> 时段 tile 替换
  *
- * 支持的标签：无（由 TIME_VARIABLE_31 全局变量控制时段）
+ * 根据 Variable 31（時間帯）替换事件 tile 为对应的时段版本：
+ *   - INSIDE_WINDOW  : tileId += 1（B tileset 右移一列 → 夜间窗）
+ *   - INSIDE_WINDOWLIGHT : tileId = 0（夜间隐藏辉光）
  *
- * 用法：
- *   渲染时通过环境变量设定时段：
- *     TIME_VAR_31=0 node scripts/render-maps.js   (朝)
- *     TIME_VAR_31=1 node scripts/render-maps.js   (昼)
- *     TIME_VAR_31=2 node scripts/render-maps.js   (夕)
- *     TIME_VAR_31=3 node scripts/render-maps.js   (夜)
- *
- * 配置：
- *   在 gameDir 下放一个 tiletime.json 文件定义替换规则：
- *   {
- *     "tilesets": {
- *       "<tileset名>": [
- *         { "day": <tileId>, "night": <tileId>, "evening": <tileId> }
- *       ]
- *     }
- *   }
+ * 时段: 0=朝, 1=昼, 2=夕, 3=夜
+ * 环境变量: TIME_VAR_31（默认 1=昼）
+ *   export TIME_VAR_31=3 && node scripts/render-maps.js <游戏目录> 地图ID
  */
-
-const fs = require('fs');
-const path = require('path');
-
-// 内置替换表（需按游戏配置）
-// 格式: { 'tileset名': [ { day: tileId, night: tileId, evening: tileId } ] }
-var BUILTIN_MAP = {};
-
-function loadTileMap(gameDir) {
-  var fp = path.join(gameDir, 'tiletime.json');
-  if (fs.existsSync(fp)) {
-    try { return JSON.parse(fs.readFileSync(fp, 'utf8')); } catch(e) {}
-  }
-  return null;
-}
-
 module.exports = {
   name: 'TileTime',
   description: '根据时段替换地图 tile（窗户昼夜变化）',
@@ -44,64 +16,41 @@ module.exports = {
   tags: ['TIME_VAR', 'tile', 'project:エニシアと契約紋'],
 
   process: function(ctx) {
-    var gameDir = ctx.gameDir || global['PLUGIN_GAME_DIR'];
-    if (!gameDir) return;
-
-    var timeVar = global['TIME_VARIABLE_31'];
-    if (timeVar === undefined || timeVar === null) return; // 未设时段，不处理
-
-    // 加载 tile 替换规则
-    var tileMap = loadTileMap(gameDir) || {};
-
-    // 内置规则 > 外部配置
-    var tsMaps = tileMap.tilesets || BUILTIN_MAP;
-
-    // 需要 map 数据
-    if (!ctx.map || !ctx.map.data) return;
     var map = ctx.map;
-    var w = map.width, h = map.height;
-    var data = map.data;
+    if (!map || !map.events) return;
 
-    // 获取地图使用的 tileset 名
-    // 从渲染上下文读取 tilesetNames（由 render-maps.js 传入）
-    var tsNames = ctx.tsNames || [];
+    // 读时段: 0=朝 1=昼 2=夕 3=夜
+    var timeVar = global['TIME_VARIABLE_31'];
+    if (timeVar === undefined || timeVar === null) timeVar = 1;
 
-    var timeKey = ['dawn', 'day', 'evening', 'night'][timeVar] || 'day';
-    var totalReplaced = 0;
+    // 白天不做窗口替换
+    if (timeVar < 3) return;
 
-    // 遍历地图的 z0-z3 层
-    for (var z = 0; z < 4; z++) {
-      var base = z * h * w;
-      for (var y = 0; y < h; y++) {
-        for (var x = 0; x < w; x++) {
-          var idx = base + y * w + x;
-          var tid = data[idx];
-          if (tid <= 0) continue;
+    for (var eid in map.events) {
+      var ev = map.events[eid];
+      if (!ev || !ev.note) continue;
+      if (ev.note.indexOf('<TE上書き>') === -1) continue;
 
-          // 在替换表中查找
-          for (var tsi = 0; tsi < tsNames.length; tsi++) {
-            var tsName = tsNames[tsi];
-            var rules = tsMaps[tsName];
-            if (!rules) continue;
+      var isLight = ev.note.indexOf('INSIDE_WINDOWLIGHT') !== -1;
+      var isWindow = !isLight && ev.note.indexOf('INSIDE_WINDOW') !== -1;
+      if (!isWindow && !isLight) continue;
 
-            for (var ri = 0; ri < rules.length; ri++) {
-              var rule = rules[ri];
-              if (rule.day === tid) {
-                var replacement = rule[timeKey];
-                if (replacement && replacement !== tid) {
-                  data[idx] = replacement;
-                  totalReplaced++;
-                }
-                break;
-              }
-            }
-          }
+      // 修改 page 0 的 tile（渲染器默认用 page 0）
+      var page = ev.pages && ev.pages[0];
+      if (!page || !page.image) continue;
+      var img = page.image;
+
+      if (isLight) {
+        // 夜间隐藏辉光
+        if (img.tileId > 0) {
+          img._originalTileId = img.tileId;
+          img.tileId = 0;
         }
+      } else if (isWindow && img.tileId > 0) {
+        // B tileset 中右移一列（+1）得到夜间版本
+        img._originalTileId = img.tileId;
+        img.tileId += 1;
       }
-    }
-
-    if (totalReplaced > 0) {
-      process.stdout.write('    TileTime: ' + totalReplaced + ' tiles replaced (time=' + timeKey + ')\n');
     }
   }
 };

@@ -20,6 +20,7 @@ function readJSON(fp) {
 // ─── 插件系统 ──────────────────────────────────────────────
 const VALID_HOOKS = ['mapStart', 'mapEnd', 'beforeSprite', 'eventSprite', 'postRender'];
 const PLUGINS = [];
+const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
 (function loadPlugins() {
   const dir = path.join(__dirname, 'plugins');
   if (!fs.existsSync(dir)) return;
@@ -32,6 +33,10 @@ const PLUGINS = [];
           return;
         }
         PLUGINS.push(p);
+        // 按钩子分组缓存
+        if (p.hook) {
+          (HOOKS[p.hook] || (HOOKS[p.hook] = [])).push(p);
+        }
       }
     } catch (e) {
       console.error('  插件加载失败:', f, e.message);
@@ -76,10 +81,9 @@ const ENC_KEY_BYTES = (() => {
   }
 })();
 global['PLUGIN_ENC_KEY'] = ENC_KEY_BYTES;
-// 时间变量（供 TemplateEvent/TileTime 选页用）：0=朝,1=昼,2=夕,3=夜
+// 时间变量（供 TemplateEvent 选页用）：0=朝,1=昼,2=夕,3=夜
 global['TIME_VARIABLE_31'] = parseInt(process.env.TIME_VAR_31, 10) || 1;
-// 时段后缀（用于输出不同时段的 PNG）
-var TIME_SUFFIX = ({2:'_evening', 3:'_night'}[global['TIME_VARIABLE_31']]) || '';
+global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
 const PROJECT_DIR = (() => {
@@ -471,7 +475,7 @@ async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
     } else if (img.characterName && img.characterName.length > 0) {
       // 运行 beforeSprite 钩子插件（可替换精灵图、修改提取方式）
       const ctx = {};
-      PLUGINS.filter(p => p.hook === 'beforeSprite').forEach(p => p.process(ev, ctx));
+      if (HOOKS.beforeSprite) for (var hi = 0; hi < HOOKS.beforeSprite.length; hi++) { HOOKS.beforeSprite[hi].process(ev, ctx); }
       // 插件标记跳过渲染（如无精灵图的模板标记事件）
       if (ctx._skipRender) continue;
       // 支持插件替换精灵（如 TemplateEvent 的 <TE:xxx> 替换）
@@ -496,7 +500,7 @@ async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
       }
       if (!frame) continue;
       // 运行 eventSprite 钩子插件（可修改 ctx.shiftX/Y 等）
-      PLUGINS.filter(p => p.hook === 'eventSprite').forEach(p => p.process(ev, ctx));
+      if (HOOKS.eventSprite) for (var ei = 0; ei < HOOKS.eventSprite.length; ei++) { HOOKS.eventSprite[ei].process(ev, ctx); }
       // 锚点：底部对齐 + 插件偏移
       const offX = Math.max(0, frame.w - TILE) / 2;
       const offY = Math.max(0, frame.h - TILE);
@@ -587,6 +591,11 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
     return false;
   }
 
+  // mapStart 钩子（插件可修改 map.data、事件 tile 等渲染前置数据）
+  if (HOOKS.mapStart) for (var mi = 0; mi < HOOKS.mapStart.length; mi++) {
+    HOOKS.mapStart[mi].process({ map: map, mapId: mapId, gameDir: GAME_DIR, tsNames: tsNames, tilesetId: map.tilesetId });
+  }
+
   const outW = w * TILE, outH = h * TILE;
   if (outW === 0 || outH === 0) {
     console.log(`[${mapId}] ✗ 尺寸无效`);
@@ -609,14 +618,6 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   }
   const bgKey = Object.keys(bgFreq).reduce((a, b) => bgFreq[a] > bgFreq[b] ? a : b);
   const bgVals = bgKey.split(',').map(Number);
-
-  // mapStart 钩子（插件可修改 map.data 等渲染前置数据）
-  for (var msp = 0; msp < PLUGINS.length; msp++) {
-    var mp = PLUGINS[msp];
-    if (mp.hook === 'mapStart' && mp.process) {
-      mp.process({ map: map, mapId: mapId, gameDir: GAME_DIR, tsNames: tsNames, tilesetId: map.tilesetId });
-    }
-  }
 
   // 两个缓冲区: lower 层先绘制, upper 层后合成上去
   const lowerBuf = Buffer.alloc(outW * outH * 4, 0);
@@ -675,21 +676,25 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   if (evCount > 0) process.stdout.write(`    ${evCount} 个事件精灵已渲染\n`);
 
   // 运行 postRender 钩子插件（叠加视差图层、滤镜等）
-  for (var pi = 0; pi < PLUGINS.length; pi++) {
-    var p = PLUGINS[pi];
-    if (p.hook === 'postRender' && p.process) {
-      await p.process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR });
-    }
+  if (HOOKS.postRender) for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
+    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR });
   }
 
-  // 输出合拼 PNG（时段后缀：_evening / _night）
-  const outName = 'Map' + String(mapId).padStart(4, '0') + TIME_SUFFIX + '.png';
+  // 输出合拼 PNG（夜间输出到 _night.png）
+  var nightSuffix = (global['TIME_VARIABLE_31'] || 1) >= 3 ? '_night.png' : '.png';
+  const outName = 'Map' + String(mapId).padStart(4, '0') + nightSuffix;
   const outPath = OUT_DIR + '/' + outName;
   await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
 
-  // 输出 tilemap sidecar
-  const tilemapPath = outPath.replace('.png', '.tilemap.json');
+  // 输出 tilemap sidecar（不带时段后缀，昼夜共用）
+  const baseName = 'Map' + String(mapId).padStart(4, '0') + '.png';
+  const tilemapPath = (OUT_DIR + '/' + baseName).replace('.png', '.tilemap.json');
   fs.writeFileSync(tilemapPath, JSON.stringify({ w, h, data: tilemap }), 'utf8');
+
+  // mapEnd 钩子（输出完成后）
+  if (HOOKS.mapEnd) for (var mei = 0; mei < HOOKS.mapEnd.length; mei++) {
+    HOOKS.mapEnd[mei].process({ map: map, mapId: mapId, outPath: outPath, gameDir: GAME_DIR });
+  }
 
   const sizeKB = (fs.statSync(outPath).size / 1024).toFixed(0);
   process.stdout.write(`  ${outName}  ${w}×${h} tiles  ${outW}×${outH}px  ${sizeKB}KB\n`);
@@ -699,7 +704,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 // ─── 渲染视差地图 ──────────────────────────────────────────────
 async function renderParallaxMap(map, mapId, tilesets) {
   const pName = map.parallaxName;
-  const outName = 'Map' + String(mapId).padStart(4, '0') + TIME_SUFFIX + '.png';
+  const outName = 'Map' + String(mapId).padStart(4, '0') + '.png';
 
   // 解密视差图
   const data = decryptParallaxImage(pName);

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getParallaxMaps: (gameDir) => ipcRenderer.invoke('get-parallax-maps', gameDir),
   loadMapData: (gameDir, mapId) => ipcRenderer.invoke('load-map-data', gameDir, mapId),
   loadSwitches: (gameDir) => ipcRenderer.invoke('load-switches', gameDir),
+  loadViewerPlugins: (projectDir) => ipcRenderer.invoke('load-viewer-plugins', projectDir),
 
   // 事件
   onProjectAdded: (cb) => ipcRenderer.on('project-added', (e, d) => cb(d)),
@@ -24,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 插件
   getPlugins: () => ipcRenderer.invoke('get-plugins'),
+  getPipeline: () => ipcRenderer.invoke('get-pipeline'),
   importPlugin: () => ipcRenderer.invoke('import-plugin'),
   onPluginOpen: (cb) => { ipcRenderer.removeAllListeners('menu-plugin-open'); ipcRenderer.on('menu-plugin-open', () => cb()); },
   onPluginHelp: (cb) => { ipcRenderer.removeAllListeners('menu-plugin-help'); ipcRenderer.on('menu-plugin-help', () => cb()); },

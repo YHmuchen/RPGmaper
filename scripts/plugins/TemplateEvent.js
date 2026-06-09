@@ -11,6 +11,11 @@ var _templateCache = null;
 
 function loadTemplates(gameDir) {
   if (_templateCache) return _templateCache;
+  // TileTime 可能已预加载并修改了模板（如给 Candle Page 1 加夜间条件）
+  if (global['TE_TEMPLATES']) {
+    _templateCache = global['TE_TEMPLATES'];
+    return _templateCache;
+  }
   try {
     var p = path.join(gameDir, 'data', 'Map001.json');
     var raw = fs.readFileSync(p, 'utf8').replace(/^﻿/, '');
@@ -25,6 +30,7 @@ function loadTemplates(gameDir) {
       }
     }
     _templateCache = result;
+    global['TE_TEMPLATES'] = result; // 供 TileTime 等插件读取
     return result;
   } catch (e) {
     // 如果读不到 Map001 就不做替换
@@ -62,8 +68,19 @@ module.exports = {
       if (hasRealSprite) return; // 保留原精灵，模板只改行为
     }
 
-    // 用模板的 page 0 图像替换当前事件的图像
-    var tmplImg = tmpl.pages[0].image;
+    // 蜡烛类模板：白天 Page 0（未点燃），夜间 Page 1（点燃）
+    var tmplPageIdx = 0;
+    var isCandleTpl = templateName.indexOf('Candle') >= 0 || templateName.indexOf('蝋') >= 0 || templateName.indexOf('燭') >= 0;
+    if (isCandleTpl && tmpl.pages[1]) {
+      var _tv = (global['TIME_VARIABLE_31'] !== undefined) ? global['TIME_VARIABLE_31'] : 1;
+      if (_tv >= 3) {
+        var _pg = tmpl.pages[1];
+        if (_pg && _pg.image && _pg.image.characterName && _pg.image.characterName.length > 0) {
+          tmplPageIdx = 1;
+        }
+      }
+    }
+    var tmplImg = tmpl.pages[tmplPageIdx].image;
     if (!tmplImg) return;
     // 只替换有实际精灵图的模板（空字符或 tileId=0 且无 charName 的不算）
     var hasSprite = tmplImg.characterName && tmplImg.characterName.length > 0;

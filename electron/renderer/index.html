@@ -194,19 +194,23 @@ async function runAll(projectName) {
   log(`▶ 全流程开始...`, 'info');
   document.getElementById('statusBar').textContent = '全流程执行中...';
 
-  log(`▶ 开始 tileset 导出...`, 'info');
-  const r1 = await electronAPI.runScript('tilesets', gameDir);
-  log(`✔ tileset 导出完成 (ok=${r1.ok})`, r1.ok ? 'done' : 'err');
-  if (r1.ok) {
-    log(`▶ 开始渲染地图...`, 'info');
-    const r2 = await electronAPI.runScript('maps', gameDir);
-    log(`✔ 地图渲染完成 (ok=${r2.ok})`, r2.ok ? 'done' : 'err');
-  } else {
-    log(`✗ tileset 导出失败，跳过渲染`, 'err');
+  // 动态获取 pipeline 步骤
+  const pipeline = await electronAPI.getPipeline();
+  var pipelineOk = true;
+  for (var pi = 0; pi < pipeline.length; pi++) {
+    var step = pipeline[pi];
+    log(`▶ ${step.label}...`, 'info');
+    var result = await electronAPI.runScript(step.name, gameDir);
+    if (result.skipped) {
+      log(`- ${step.label}: 插件未安装，跳过`, 'info');
+    } else if (result.ok) {
+      log(`✔ ${step.label} 完成`, 'done');
+    } else {
+      log(`✗ ${step.label} 失败`, 'err');
+      if (step.name === 'tilesets') pipelineOk = false;
+      if (!pipelineOk && (step.name === 'maps' || step.name === 'night')) continue;
+    }
   }
-  log(`▶ 开始提取传送点...`, 'info');
-  const r3 = await electronAPI.runScript('transfers', gameDir);
-  log(`✔ 传送点提取完成 (ok=${r3.ok})`, r3.ok ? 'done' : 'err');
 
   refreshList();
   document.getElementById('statusBar').textContent = '全流程完成';

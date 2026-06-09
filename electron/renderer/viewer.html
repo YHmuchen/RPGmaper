@@ -151,6 +151,8 @@ const wrap = document.getElementById('canvasWrap');
 })();
 
 let img = new Image();
+let _nightImg = new Image();
+let _showNight = false;
 let zoom = 1, viewX = 0, viewY = 0;
 let selections = [];
 let tilemap = null;  // { w, h, data: [z0,z1,z2,z3,s, …] }
@@ -225,8 +227,8 @@ function resolveMapPath(mapId) {
     const safe = pName.replace(/[\/:*?"<>|]/g, '_');
     return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/parallax/parallax_' + safe + '.png';
   }
-  var timeSuffix = ({ evening: '_evening', night: '_night' }[_timePeriod]) || '';
-  return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + timeSuffix + '.png';
+
+  return 'file:///' + PROJECT_DIR.replace(/\\/g, '/') + '/maps/Map' + pad + '.png';
 }
 
 // 地图导航历史 & 传送点高亮
@@ -310,6 +312,12 @@ function loadMap(mapId, entrySource) {
     }, 0);
     document.getElementById('status').textContent = img.width + '×' + img.height + 'px' + (tw ? ' ' + tw : '');
   };
+  // 预加载夜间图
+  _nightImg = new Image();
+  _nightImg.onload = function() { if (_showNight) { drawMap(); drawGrid(); } };
+  _nightImg.onerror = function() {};
+  var nightPath = path.replace('.png', '_night.png');
+  _nightImg.src = nightPath;
   img.src = path;
   if (entrySource && img.complete && img.naturalWidth > 0) {
     window._currentMapId = mapId;
@@ -336,7 +344,10 @@ function getTileId(tx, ty, layer) {
 }
 
 // ─── 绘制 ─────────────────────────────────────────────────────
-function drawMap() { ctx.drawImage(img, 0, 0); }
+function drawMap() {
+  var useImg = (_showNight && _nightImg.complete && _nightImg.naturalWidth > 0) ? _nightImg : img;
+  ctx.drawImage(useImg, 0, 0);
+}
 
 function drawGrid() {
   gctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
@@ -1171,6 +1182,7 @@ document.getElementById('showFx').addEventListener('change', function() {
 var _TONE_PROJECT = 'エニシアと契約紋 ～馬蹄通りの小聖女～';
 var _toneEnabled = PROJECT_NAME === _TONE_PROJECT && localStorage.getItem('plugin_MapTone') !== 'false';
 var _timePeriod = localStorage.getItem('rpgmaper_time') || 'day';
+_showNight = _timePeriod === 'night';
 var _currentTone = null; // [{R,G,B,Gray}, name]
 // 显示/隐藏时段下拉框
 if (!_toneEnabled) {
@@ -1238,14 +1250,15 @@ function applyMapTone() {
   }
 }
 
-// 时段切换
+// 时段切换 — 直接切换图像（不重载地图）
 document.getElementById('timeSelect').value = _timePeriod;
 document.getElementById('timeSelect').addEventListener('change', function() {
   _timePeriod = this.value;
+  _showNight = (_timePeriod === 'night');
   localStorage.setItem('rpgmaper_time', _timePeriod);
-  // 重新加载地图（时段不同可能 tile 不同）
-  var mid = window._currentMapId;
-  if (mid) loadMap(mid);
+  drawMap();
+  drawGrid();
+  applyMapTone();
 });
 
 // Patch loadMap 时段切换时也重绘色调
