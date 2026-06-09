@@ -190,6 +190,12 @@ ipcMain.handle('run-script', (event, scriptName, projectId) => {
   const scriptPath = path.join(PROJECT_ROOT, s.file);
   if (!fs.existsSync(scriptPath)) return { ok: true, skipped: true };
 
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry || !entry.gameDir) return { ok: false, error: "项目 ID " + projectId + " 未找到或未关联游戏目录" };
+  var gameDir = entry.gameDir;
+  var projectName = entry.name;
+
   return new Promise(resolve => {
     let timer = setTimeout(() => { proc.kill(); resolve({ ok: false, error: "脚本执行超时" }); }, 600000);
     const proc = spawn("node", [scriptPath, gameDir], {
