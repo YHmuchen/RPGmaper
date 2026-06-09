@@ -200,6 +200,7 @@ async function runOne(projectId, script) {
 
 async function runAll(projectId) {
   var info = await electronAPI.getProjectById(projectId);
+  if (!info) { await electronAPI.scanProjects(); info = await electronAPI.getProjectById(projectId); }
   if (!info) { log('项目未找到', 'err'); return; }
 
   log(`▶ 全流程开始...`, 'info');
