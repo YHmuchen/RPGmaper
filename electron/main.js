@@ -200,6 +200,7 @@ ipcMain.handle('run-script', (event, scriptName, projectId) => {
     let timer = setTimeout(() => { proc.kill(); resolve({ ok: false, error: "脚本执行超时" }); }, 600000);
     const proc = spawn("node", [scriptPath, gameDir], {
       cwd: PROJECT_ROOT,
+      env: Object.assign({}, process.env, { PROJECT_ID: String(projectId), PROJECT_NAME: projectName }),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
