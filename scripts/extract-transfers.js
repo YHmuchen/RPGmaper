@@ -173,7 +173,19 @@ function main() {
     }
 
     if (mapTransfers.length > 0) {
-      allTransfers[mapId] = mapTransfers;
+      // 去重：同一位置指向同一目标的只保留一条，优先保留 source=map
+      const dedupMap = new Map();
+      for (const t of mapTransfers) {
+        const k = t.fx + ',' + t.fy + ',' + t.tid + ',' + t.tx + ',' + t.ty;
+        const prev = dedupMap.get(k);
+        if (!prev) { dedupMap.set(k, t); continue; }
+        // 已有的是 commonEvent，新的是直接 map → 替换
+        if (prev.source && prev.source.indexOf('commonEvent') === 0 && t.source === 'map') {
+          dedupMap.set(k, t);
+        }
+      }
+      const deduped = [...dedupMap.values()];
+      allTransfers[mapId] = deduped;
       mapsWithTransfers++;
     }
   }
@@ -183,6 +195,12 @@ function main() {
     'var TRANSFERS_ALL = ' + JSON.stringify(allTransfers, null, 2) + ';\n';
 
   fs.writeFileSync(OUT_FILE, content, 'utf8');
+
+  // 输出到项目目录
+  try {
+    var pj = path.join(path.dirname(__dirname), 'maps', 'projects', path.basename(GAME_DIR).replace(/[\s_]+$/, ''));
+    fs.writeFileSync(path.join(pj, 'transfers_data.js'), content, 'utf8');
+  } catch(e) {}
 
   const stats = {
     totalMaps: mapIds.length,
