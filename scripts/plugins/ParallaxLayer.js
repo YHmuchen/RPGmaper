@@ -20,7 +20,7 @@ module.exports = {
   name: 'ParallaxLayer',
   description: '<PLM:file> 视差图层（可开关）',
   hook: 'postRender',
-  tags: ['PLM', 'PLM_Blend', 'project:2'],,
+  tags: ['PLM', 'PLM_Blend', 'project:2'],
 
   process: async function(ctx) {
     var gameDir = ctx.gameDir;
@@ -101,8 +101,10 @@ module.exports = {
             });
           }
           if (compositeOps.length > 0 && ctx.outputPath) {
-            var imgBuf = await sharp(ctx.outputPath).composite(compositeOps).png().toBuffer();
-            fs.writeFileSync(ctx.outputPath, imgBuf);
+            try {
+              var imgBuf = await sharp(ctx.outputPath).composite(compositeOps).png().toBuffer();
+              fs.writeFileSync(ctx.outputPath, imgBuf);
+                          } catch(ce2) { console.error('[PLM DEBUG] composite ERROR:', ce2.message); }
           }
         } catch(ce) {
           console.error("[ParallaxLayer] PLM composite failed:", ce.message);

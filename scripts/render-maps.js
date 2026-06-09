@@ -23,7 +23,7 @@ const PLUGINS = [];
 const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
 
 // 检查插件是否对当前项目生效
-function pluginMatchesProject(p, projectName) {
+function pluginMatchesProject(p, projectName, projectId) {
   if (!p.tags || p.tags.length === 0) return true;
   var hasProject = false;
   for (var ti = 0; ti < p.tags.length; ti++) {
@@ -31,14 +31,14 @@ function pluginMatchesProject(p, projectName) {
     if (t === 'global') return true;
     if (t.indexOf('project:') === 0) {
       hasProject = true;
-      // project: 后跟项目名——完全匹配或在项目名前缀匹配
       var pn = t.slice(8).trim();
-      if (pn === projectName) return true;
+      // CLI 模式（无 projectId）不过滤 project: 标签
+      if (!projectId) return true;
+      // 支持按数字 ID 或目录名匹配
+      if (pn === projectName || pn === projectId) return true;
     }
   }
-  // 有 project: 标签但都不匹配 → 跳过
   if (hasProject) return false;
-  // 无 project: 标签也无 global → 视为全局
   return true;
 }
 
@@ -65,11 +65,11 @@ function pluginMatchesProject(p, projectName) {
   });
 })();
 
-// 按项目名过滤 HOOKS（只保留匹配项目的插件）
-function loadPluginsForProject(projectName) {
+// 按项目名/ID 过滤 HOOKS（只保留匹配项目的插件）
+function loadPluginsForProject(projectName, projectId) {
   Object.keys(HOOKS).forEach(function(hook) {
     HOOKS[hook] = HOOKS[hook].filter(function(p) {
-      return pluginMatchesProject(p, projectName);
+      return pluginMatchesProject(p, projectName, projectId);
     });
   });
 }
@@ -118,11 +118,18 @@ global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
 const PROJECT_NAME = process.env.PROJECT_NAME || path.basename(GAME_DIR).replace(/[\s_]+$/, '');
-const PROJECT_ID = process.env.PROJECT_ID || '';
 const PROJECT_DIR = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), PROJECT_NAME);
 
-// 按项目名过滤插件（只加载 global 或 project:当前项目 的插件）
-loadPluginsForProject(PROJECT_ID || PROJECT_NAME);
+// 从 projects.json 查找项目数字 ID（未通过环境变量提供时自动查表）
+const _pj = (function() {
+  var p = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), 'projects.json');
+  if (!fs.existsSync(p)) return {};
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e) { return {}; }
+})();
+const PROJECT_ID = process.env.PROJECT_ID || Object.keys(_pj).find(function(k) { return _pj[k].name === PROJECT_NAME; }) || '';
+
+// 按项目名/ID 过滤插件（只加载 global 或 project:当前项目 的插件）
+loadPluginsForProject(PROJECT_NAME, PROJECT_ID);
 const TS_DIR        = PROJECT_DIR + '/tilesets/';
 const OUT_DIR       = PROJECT_DIR + '/maps/';
 const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';
