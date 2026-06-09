@@ -20,7 +20,7 @@ module.exports = {
   name: 'ParallaxLayer',
   description: '<PLM:file> 视差图层（可开关）',
   hook: 'postRender',
-  tags: ['PLM', 'PLM_Blend', 'project:2'],
+  tags: ['PLM', 'PLM_Blend', 'project:3'],
 
   process: async function(ctx) {
     var gameDir = ctx.gameDir;

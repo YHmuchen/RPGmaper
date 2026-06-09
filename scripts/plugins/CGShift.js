@@ -7,7 +7,7 @@ module.exports = {
   name: 'CGShift',
   description: '<CGシフト:A,X,Y> 像素偏移',
   hook: 'eventSprite',
-  tags: ['CGシフト', 'project:2'],
+  tags: ['CGシフト', 'project:3'],
 
   process: function(ev, ctx) {
     if (!ev.note) return;

@@ -42,7 +42,7 @@ module.exports = {
   name: 'TemplateEvent',
   description: '模拟 <TE:名称> 模板事件替换',
   hook: 'beforeSprite',
-  tags: ['TE', 'project:2'],
+  tags: ['TE', 'project:3'],
 
   process: function(ev, ctx) {
     if (!ev.note) return;
