@@ -105,7 +105,7 @@ module.exports = {
             fs.writeFileSync(ctx.outputPath, imgBuf);
           }
         } catch(ce) {
-          // PLM 合成失败不影响主流程
+          console.error("[ParallaxLayer] PLM composite failed:", ce.message);
         }
 
         // ── 叠加 MapTone 色调（基于 MAPTYPE 和时段） ──
@@ -141,7 +141,7 @@ module.exports = {
                 raw[ti+2] = Math.round(cb);
               }
               await sharp(raw, { raw: { width: w2, height: h2, channels: 4 } }).png().toFile(ctx.outputPath);
-            } catch(te) {}
+            } catch(te) { console.error("[ParallaxLayer] MapTone apply failed:", te.message); }
         }
         }
       }
