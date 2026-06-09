@@ -220,7 +220,7 @@ async function runAll(projectName) {
     var step = pipeline[pi];
     if (!pipelineOk) { log(`- ${step.label}: 前置步骤失败跳过`, 'warn'); continue; }
     log(`▶ ${step.label}...`, 'info');
-    var result = await electronAPI.runScript(step.name, gameDir);
+    var result = await electronAPI.runScript(step.name, projectId);
     if (result.skipped) {
       log(`- ${step.label}: 插件未安装，跳过`, 'info');
     } else if (result.ok) {
@@ -348,15 +348,15 @@ function renderPluginList(list) {
 }
 
 // ─── 项目插件 ─────────────────────────────────────────────
-var _projectPluginName = '';
+var _projectPluginId = '';
 
 function openProjectPlugins(projectName) {
-  _projectPluginName = projectName;
+  _projectPluginId = projectName;
   document.getElementById('projectPluginTitle').textContent = '🧩 插件 - ' + projectName;
   document.getElementById('projectPluginModal').style.display = 'block';
   document.getElementById('projectPluginList').innerHTML = '<div style="color:#666;padding:8px;">加载中...</div>';
 	    electronAPI.getPlugins().then(function(all) {
-	        return all.filter(function(x) { return x.project === projectName; });
+	        return all.filter(function(x) { return x.project === String(projectId); });
 	    }).then(function(list) {
     renderProjectPluginList(list);
   }).catch(function() {
@@ -367,7 +367,7 @@ function openProjectPlugins(projectName) {
 function toggleProjectPlugin(input) {
   var c = input.checked, card = input.closest('.plugin-card');
   var name = card.getAttribute('data-name');
-  localStorage.setItem('plugin_' + _projectPluginName + '_' + name, c);
+  localStorage.setItem('plugin_' + _projectPluginId + '_' + name, c);
   card.style.borderLeftColor = c ? '#4a8bc2' : '#444';
   input.nextElementSibling.style.background = c ? '#4a8bc2' : '#444';
   input.nextElementSibling.nextElementSibling.style.left = c ? '20px' : '2px';
@@ -380,7 +380,7 @@ function renderProjectPluginList(list) {
   }
   var html = '';
   list.forEach(function(p) {
-    var enabled = localStorage.getItem('plugin_' + _projectPluginName + '_' + p.name) !== 'false';
+    var enabled = localStorage.getItem('plugin_' + _projectPluginId + '_' + p.name) !== 'false';
     html += '<div class="plugin-card" data-name="' + esc(p.name) + '" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:#2a2a2a;margin-bottom:4px;border-left:3px solid ' + (enabled ? '#4a8bc2' : '#444') + ';">';
     html += '  <div style="flex:1;min-width:0;">';
     html += '    <div style="color:#ddd;font-size:13px;">' + esc(p.name) + ' <span style="color:#8a8;font-size:10px;">🎮 ' + esc(p.project) + '</span></div>';
@@ -405,7 +405,7 @@ async function importProjectPlugin() {
     if (result.success) {
       showToast("插件「" + result.file + "」导入成功，请编辑 tags 添加 project: 标记");
       var all = await electronAPI.getPlugins();
-      renderProjectPluginList(all.filter(function(x){return x.project===_projectPluginName;}));
+      renderProjectPluginList(all.filter(function(x){return x.project===_projectPluginId;}));
     } else {
       showToast("导入失败: " + (result.error || "未知错误"));
     }

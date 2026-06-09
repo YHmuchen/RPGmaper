@@ -117,11 +117,12 @@ global['TIME_VARIABLE_31'] = isNaN(_tv) ? 1 : _tv;
 global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
-const PROJECT_NAME = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+const PROJECT_NAME = process.env.PROJECT_NAME || path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+const PROJECT_ID = process.env.PROJECT_ID || '';
 const PROJECT_DIR = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), PROJECT_NAME);
 
 // 按项目名过滤插件（只加载 global 或 project:当前项目 的插件）
-loadPluginsForProject(PROJECT_NAME);
+loadPluginsForProject(PROJECT_ID || PROJECT_NAME);
 const TS_DIR        = PROJECT_DIR + '/tilesets/';
 const OUT_DIR       = PROJECT_DIR + '/maps/';
 const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   scanProjects: () => ipcRenderer.invoke('scan-projects'),
   addProject: () => ipcRenderer.invoke('add-project'),
+  getProjectById: (id) => ipcRenderer.invoke('get-project-by-id', id),
   runScript: (script, gameDir) => ipcRenderer.invoke('run-script', script, gameDir),
   deleteProject: (name) => ipcRenderer.invoke('delete-project', name),
   clearMaps: (name) => ipcRenderer.invoke('clear-maps', name),

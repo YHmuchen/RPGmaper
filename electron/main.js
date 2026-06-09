@@ -5,6 +5,9 @@ const { spawn } = require('child_process');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const PROJECTS_DIR = path.join(PROJECT_ROOT, 'maps', 'projects');
+const PROJECTS_JSON = path.join(PROJECTS_DIR, 'projects.json');
+const PROJECTS_JSON = path.join(PROJECTS_DIR, 'projects.json');
+const PROJECTS_JSON = path.join(PROJECTS_DIR, 'projects.json');
 
 let mainWindow = null;
 
@@ -53,6 +56,101 @@ function createWindow() {
 }
 
 // ─── 项目管理 ─────────────────────────────────────────────────
+function loadProjects() {
+  if (!fs.existsSync(PROJECTS_JSON)) return {};
+  try { return JSON.parse(fs.readFileSync(PROJECTS_JSON, 'utf8')); } catch(e) { return {}; }
+}
+
+function saveProjects(data) {
+  fs.writeFileSync(PROJECTS_JSON, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function ensureProjectsIndex() {
+  var data = loadProjects();
+  var changed = false;
+  var maxId = Object.keys(data).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+  if (!fs.existsSync(PROJECTS_DIR)) return data;
+  fs.readdirSync(PROJECTS_DIR).forEach(function(name) {
+    if (name === 'projects.json' || name === '.' || name === '..') return;
+    var dir = path.join(PROJECTS_DIR, name);
+    if (!fs.statSync(dir).isDirectory()) return;
+    var existing = Object.keys(data).find(function(k) { return data[k].name === name; });
+    if (!existing) {
+      maxId++;
+      data[String(maxId)] = { name: name };
+      changed = true;
+    }
+  });
+  if (changed) saveProjects(data);
+  return data;
+}
+
+function getProjectDir(name) {
+  return path.join(PROJECTS_DIR, name);
+}
+
+function loadProjects() {
+  if (!fs.existsSync(PROJECTS_JSON)) return {};
+  try { return JSON.parse(fs.readFileSync(PROJECTS_JSON, 'utf8')); } catch(e) { return {}; }
+}
+
+function saveProjects(data) {
+  fs.writeFileSync(PROJECTS_JSON, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function ensureProjectsIndex() {
+  var data = loadProjects();
+  var changed = false;
+  var maxId = Object.keys(data).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+  if (!fs.existsSync(PROJECTS_DIR)) return data;
+  fs.readdirSync(PROJECTS_DIR).forEach(function(name) {
+    if (name === 'projects.json' || name === '.' || name === '..') return;
+    var dir = path.join(PROJECTS_DIR, name);
+    if (!fs.statSync(dir).isDirectory()) return;
+    var existing = Object.keys(data).find(function(k) { return data[k].name === name; });
+    if (!existing) {
+      maxId++;
+      data[String(maxId)] = { name: name };
+      changed = true;
+    }
+  });
+  if (changed) saveProjects(data);
+  return data;
+}
+
+function getProjectDir(name) { return path.join(PROJECTS_DIR, name); }
+
+function loadProjects() {
+  if (!fs.existsSync(PROJECTS_JSON)) return {};
+  try { return JSON.parse(fs.readFileSync(PROJECTS_JSON, 'utf8')); } catch(e) { return {}; }
+}
+
+function saveProjects(data) {
+  fs.writeFileSync(PROJECTS_JSON, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function ensureProjectsIndex() {
+  var data = loadProjects();
+  var changed = false;
+  var maxId = Object.keys(data).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+  if (!fs.existsSync(PROJECTS_DIR)) return data;
+  fs.readdirSync(PROJECTS_DIR).forEach(function(name) {
+    if (name === 'projects.json' || name === '.' || name === '..') return;
+    var dir = path.join(PROJECTS_DIR, name);
+    if (!fs.statSync(dir).isDirectory()) return;
+    var existing = Object.keys(data).find(function(k) { return data[k].name === name; });
+    if (!existing) {
+      maxId++;
+      data[String(maxId)] = { name: name };
+      changed = true;
+    }
+  });
+  if (changed) saveProjects(data);
+  return data;
+}
+
+function getProjectDir(name) { return path.join(PROJECTS_DIR, name); }
+
 function scanProjects() {
   const projects = [];
   if (!fs.existsSync(PROJECTS_DIR)) return projects;
@@ -113,7 +211,7 @@ ipcMain.handle('add-project', async () => {
   return scanProjects();
 });
 
-ipcMain.handle('run-script', (event, scriptName, gameDir) => {
+ipcMain.handle('run-script', (event, scriptName, projectId) => {
   const scripts = {
     tilesets: { file: 'scripts/extract-tilesets.js', label: '导出 tileset' },
     transfers: { file: 'scripts/extract-transfers.js', label: '提取传送点' },
