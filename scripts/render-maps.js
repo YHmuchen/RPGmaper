@@ -90,9 +90,10 @@ const TILE_ID_A4 = 5888;
 const TILE_ID_MAX = 8192;
 
 // 游戏目录：优先用命令行参数 > 环境变量 > 默认值
+const BAKED = process.argv.slice(2).includes('--bake');
+
 const GAME_DIR = (() => {
-  const args = process.argv.slice(2);
-  // 第一个不以数字开头的参数视为游戏目录路径
+  const args = process.argv.slice(2).filter(a => a !== '--bake');
   const dirArg = args.find(a => isNaN(parseInt(a)));
   if (dirArg) return dirArg;
   if (process.env.GAME_DIR) return process.env.GAME_DIR;
@@ -722,7 +723,7 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
 
   // 运行 postRender 钩子插件（叠加视差图层、滤镜等，文件已保存可读写）
   if (HOOKS.postRender) for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
-    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: outPath });
+    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: outPath, baked: BAKED });
   }
 
   // 输出 tilemap sidecar（不带时段后缀，昼夜共用）
