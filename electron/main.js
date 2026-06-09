@@ -88,19 +88,20 @@ function getProjectDir(name) {
 }
 
 function scanProjects() {
-  const projects = [];
-  if (!fs.existsSync(PROJECTS_DIR)) return projects;
-  for (const name of fs.readdirSync(PROJECTS_DIR)) {
-    const dir = path.join(PROJECTS_DIR, name);
-    if (!fs.statSync(dir).isDirectory()) continue;
-    const tilesets = fs.existsSync(path.join(dir, 'tilesets'))
-      ? fs.readdirSync(path.join(dir, 'tilesets')).filter(f => f.endsWith('.png')).length : 0;
-    const trans = fs.existsSync(path.join(dir, 'transfers_data.js')) ? true : false;
-    const tilemapJS = fs.existsSync(path.join(dir, 'maps', 'tilemaps_data.js')) ? true : false;
-    const maps = fs.existsSync(path.join(dir, 'maps'))
-      ? fs.readdirSync(path.join(dir, 'maps')).filter(f => f.endsWith('.png')).length : 0;
-    projects.push({ name, tilesets, maps, hasTransfers: trans, hasTilemaps: tilemapJS });
-  }
+  var index = ensureProjectsIndex();
+  var projects = [];
+  Object.keys(index).forEach(function(id) {
+    var entry = index[id];
+    var dir = path.join(PROJECTS_DIR, entry.name);
+    if (!fs.existsSync(dir)) return;
+    var tilesets = fs.existsSync(path.join(dir, 'tilesets'))
+      ? fs.readdirSync(path.join(dir, 'tilesets')).filter(function(f) { return f.endsWith('.png'); }).length : 0;
+    var trans = fs.existsSync(path.join(dir, 'transfers_data.js')) ? true : false;
+    var tilemapJS = fs.existsSync(path.join(dir, 'maps', 'tilemaps_data.js')) ? true : false;
+    var maps = fs.existsSync(path.join(dir, 'maps'))
+      ? fs.readdirSync(path.join(dir, 'maps')).filter(function(f) { return f.endsWith('.png'); }).length : 0;
+    projects.push({ id: Number(id), name: entry.name, tilesets: tilesets, maps: maps, hasTransfers: trans, hasTilemaps: tilemapJS });
+  });
   return projects;
 }
 
