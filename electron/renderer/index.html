@@ -133,17 +133,17 @@ function createProjectCard(p) {
     </div>
   `;
 
-  card.querySelector('.btn-ts').addEventListener('click', () => runOne(p.name, 'tilesets'));
+  card.querySelector('.btn-ts').addEventListener('click', () => runOne(p.id, 'tilesets'));
   card.querySelector(".proj-title").addEventListener("click", () => openViewer(p));
   card.querySelector('.btn-map').addEventListener('click', () => runOne(p.name, 'maps'));
   card.querySelector('.btn-tr').addEventListener('click', () => runOne(p.name, 'transfers'));
-  card.querySelector('.btn-all').addEventListener('click', () => runAll(p.name));
-  card.querySelector('.btn-plugin').addEventListener('click', () => openProjectPlugins(p.name));
+  card.querySelector('.btn-all').addEventListener('click', () => runAll(p.id));
+  card.querySelector('.btn-plugin').addEventListener('click', () => openProjectPlugins(p.id, p.name));
   card.querySelector('.btn-clear').addEventListener('click', async () => {
     if (!confirm(`清空「${p.name}」的地图数据？tileset、渲染图和视差图将被删除。`)) return;
     if (!confirm(`二次确认：此操作不可恢复，确定清空「${p.name}」的地图数据？`)) return;
     try {
-      await electronAPI.clearMaps(p.name);
+      await electronAPI.clearMaps(p.id);
       refreshList();
       log(`已清空地图: ${p.name}`, 'done');
     } catch (e) {
@@ -154,7 +154,7 @@ function createProjectCard(p) {
     var name = prompt(`删除项目「${p.name}」：输入项目名称确认删除`);
     if (!name || name !== p.name) return;
     try {
-      await electronAPI.deleteProject(p.name);
+      await electronAPI.deleteProject(p.id);
       refreshList();
       log(`已删除: ${p.name}`, 'done');
     } catch (e) {
@@ -175,7 +175,7 @@ async function openViewer(p) {
     stored[p.name] = gameDir;
     localStorage.setItem("gameDirs", JSON.stringify(stored));
   }
-  await electronAPI.openViewer(p.name, gameDir);
+  await electronAPI.openViewer(p.id);
   log("✔ 已打开查看器: " + p.name, "done");
 }
 
