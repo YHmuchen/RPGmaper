@@ -355,7 +355,9 @@ function openProjectPlugins(projectName) {
   document.getElementById('projectPluginTitle').textContent = '🧩 插件 - ' + projectName;
   document.getElementById('projectPluginModal').style.display = 'block';
   document.getElementById('projectPluginList').innerHTML = '<div style="color:#666;padding:8px;">加载中...</div>';
-  electronAPI.getProjectPlugins(projectName).then(function(list) {
+	    electronAPI.getPlugins().then(function(all) {
+	        return all.filter(function(x) { return x.project === projectName; });
+	    }).then(function(list) {
     renderProjectPluginList(list);
   }).catch(function() {
     document.getElementById('projectPluginList').innerHTML = '<div style="color:#c55;padding:8px;">加载失败</div>';
@@ -397,19 +399,18 @@ function renderProjectPluginList(list) {
 
 async function importProjectPlugin() {
   try {
-    var result = await electronAPI.importProjectPlugin(_projectPluginName);
+    var result = await electronAPI.importPlugin();
     if (!result) return;
-    if (result.duplicate) { showToast('插件「' + result.file + '」已存在'); return; }
+    if (result.duplicate) { showToast("插件「" + result.file + "」已存在"); return; }
     if (result.success) {
-      showToast('插件「' + result.file + '」导入成功');
-      var list = await electronAPI.getProjectPlugins(_projectPluginName);
-      renderProjectPluginList(list);
+      showToast("插件「" + result.file + "」导入成功，请编辑 tags 添加 project: 标记");
+      var all = await electronAPI.getPlugins();
+      renderProjectPluginList(all.filter(function(x){return x.project===_projectPluginName;}));
     } else {
-      showToast('导入失败: ' + (result.error || '未知错误'));
+      showToast("导入失败: " + (result.error || "未知错误"));
     }
-  } catch(e) { showToast('导入出错: ' + e.message); }
+  } catch(e) { showToast("导入出错: " + e.message); }
 }
-
 function showToast(msg) {
   var t = document.createElement('div');
   t.textContent = msg;
