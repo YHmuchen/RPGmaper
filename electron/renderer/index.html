@@ -166,22 +166,14 @@ function createProjectCard(p) {
 }
 
 async function openViewer(p) {
-  var stored = JSON.parse(localStorage.getItem("gameDirs") || "{}");
-  var gameDir = stored[p.name];
-  if (!gameDir) {
-    log("未找到游戏目录，请选择", "err");
-    gameDir = await electronAPI.selectDirectory();
-    if (!gameDir) { log("取消选择", "err"); return; }
-    stored[p.name] = gameDir;
-    localStorage.setItem("gameDirs", JSON.stringify(stored));
-  }
+  var info = await ensureGameDir(p.id);
+  if (!info) return;
   await electronAPI.openViewer(p.id);
   log("✔ 已打开查看器: " + p.name, "done");
 }
-
 async function runOne(projectId, script) {
-  var info = await electronAPI.getProjectById(projectId);
-  if (!info || !info.gameDir) { log('项目未关联游戏目录', 'err'); return; }
+  var info = await ensureGameDir(projectId);
+  if (!info) return;
 
   const label = script === 'tilesets' ? '导出 tileset' : (script === 'transfers' ? '提取传送点' : '渲染地图');
   log(`▶ ${label}...`, 'info');
@@ -212,9 +204,9 @@ async function ensureGameDir(projectId) {
 }
 
 async function runAll(projectId) {
-  var info = await electronAPI.getProjectById(projectId);
-  if (!info) { await electronAPI.scanProjects(); info = await electronAPI.getProjectById(projectId); }
-  if (!info) { log('项目未找到', 'err'); return; }
+  var info = await ensureGameDir(projectId);
+  if (!info) return;
+
 
   log(`▶ 全流程开始...`, 'info');
   document.getElementById('statusBar').textContent = '全流程执行中...';
