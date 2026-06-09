@@ -147,6 +147,13 @@ ipcMain.handle('add-project', async () => {
   return scanProjects();
 });
 
+ipcMain.handle('get-project-by-id', (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry) return null;
+  return { id: Number(projectId), name: entry.name, gameDir: entry.gameDir || '' };
+});
+
 ipcMain.handle('run-script', (event, scriptName, projectId) => {
   const scripts = {
     tilesets: { file: 'scripts/extract-tilesets.js', label: '导出 tileset' },
