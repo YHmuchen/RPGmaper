@@ -30,11 +30,7 @@
 
 Map0003 (61×101) | Map0016 (35×52) | Map0120 (70×50)
 :---:|:---:|:---:
-![Map3](docs/sample_Map0003.jpg) | ![Map16](docs/sample_Map0016.jpg) | ![Map120](docs/sample_Map0120.jpg)
-
-昼夜切换 | 传送点导航 | 视差图层
-:---:|:---:|:---:
-![昼](docs/sample_Map0003.jpg) | ![传送点](docs/sample_Map0003.jpg) | ![PLM](docs/sample_Map0003.jpg)
+![Map3](docs/sample_Map0003.png) | ![Map16](docs/sample_Map0016.png) | ![Map120](docs/sample_Map0120.png)
 
 ---
 
