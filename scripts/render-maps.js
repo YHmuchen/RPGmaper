@@ -676,16 +676,16 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   var evCount = await renderEvents(lowerBuf, outW, outH, map, tsNames, tsImgs);
   if (evCount > 0) process.stdout.write(`    ${evCount} 个事件精灵已渲染\n`);
 
-  // 运行 postRender 钩子插件（叠加视差图层、滤镜等）
-  if (HOOKS.postRender) for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
-    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR });
-  }
-
   // 输出合拼 PNG（夜间输出到 _night.png）
   var nightSuffix = (global['TIME_VARIABLE_31'] || 1) >= 3 ? '_night.png' : '.png';
   const outName = 'Map' + String(mapId).padStart(4, '0') + nightSuffix;
   const outPath = OUT_DIR + '/' + outName;
   await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
+
+  // 运行 postRender 钩子插件（叠加视差图层、滤镜等，文件已保存可读写）
+  if (HOOKS.postRender) for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
+    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: outPath });
+  }
 
   // 输出 tilemap sidecar（不带时段后缀，昼夜共用）
   const baseName = 'Map' + String(mapId).padStart(4, '0') + '.png';

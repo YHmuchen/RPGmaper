@@ -82,6 +82,68 @@ module.exports = {
 
       if (meta.length > 0) {
         fs.writeFileSync(path.join(plmDir, 'info.json'), JSON.stringify(meta, null, 2), 'utf8');
+
+        // ── 按时段透明度将 PLM 图层合入最终渲染图 ──
+        // 时段因子：昼=0（不显示）、夕方=0.35、夜=1.0
+        var _tv = global['TIME_VARIABLE_31'];
+        var timeFactor = (_tv === 3) ? 1.0 : 0;
+        if (timeFactor > 0) try {
+          var compositeOps = [];
+          for (var ci = 0; ci < layers.length; ci++) {
+            var cl = layers[ci];
+            var clPath = path.join(plmDir, cl.file + '.png');
+            if (!fs.existsSync(clPath)) continue;
+            var blendMode = cl.blend === 1 ? 'add' : (cl.blend === 3 ? 'multiply' : 'over');
+            compositeOps.push({
+              input: clPath,
+              blend: blendMode,
+              opacity: ((cl.opacity || 255) / 255) * timeFactor,
+            });
+          }
+          if (compositeOps.length > 0 && ctx.outputPath) {
+            var imgBuf = await sharp(ctx.outputPath).composite(compositeOps).png().toBuffer();
+            fs.writeFileSync(ctx.outputPath, imgBuf);
+          }
+        } catch(ce) {
+          // PLM 合成失败不影响主流程
+        }
+
+        // ── 叠加 MapTone 色调（基于 MAPTYPE 和时段） ──
+        var mapNote = ctx.map && ctx.map.note || "";
+        var mapType = (mapNote.match(/<MAPTYPE:\s*(\w+)\s*>/) || [])[1] || "";
+        if (mapType) {
+          var toneMap = {
+            INSIDE:         { 0: [0,0,0,0], 1: [0,0,0,0], 2: [0,0,0,0], 3: [-68,-68,0,68] },
+            OUTSIDE:        { 0: [0,0,0,0], 1: [0,0,0,0], 2: [17,-34,-34,0], 3: [-68,-68,0,34] },
+            OUTSIDE_TOWN:   { 0: [0,0,0,0], 1: [0,0,0,0], 2: [17,-34,-34,0], 3: [-68,-68,0,34] },
+            INSIDE_WINDOW:  { 0: [0,0,0,0], 1: [0,0,0,0], 2: [17,-34,-34,0], 3: [-68,-68,0,34] },
+          };
+          var tone = (toneMap[mapType] || {})[_tv];
+          if (tone && tone.some(function(v){return v!==0;})) {
+            try {
+              var rOff = tone[0], gOff = tone[1], bOff = tone[2], grayAmt = (tone[3]||0) / 255;
+              var raw = await sharp(ctx.outputPath).raw().toBuffer();
+              var meta2 = await sharp(ctx.outputPath).metadata();
+              var w2 = meta2.width, h2 = meta2.height;
+              for (var ti = 0; ti < raw.length; ti += 4) {
+                var cr = raw[ti] + rOff, cg = raw[ti+1] + gOff, cb = raw[ti+2] + bOff;
+                cr = cr < 0 ? 0 : (cr > 255 ? 255 : cr);
+                cg = cg < 0 ? 0 : (cg > 255 ? 255 : cg);
+                cb = cb < 0 ? 0 : (cb > 255 ? 255 : cb);
+                if (grayAmt > 0) {
+                  var gv = (cr + cg + cb) / 3;
+                  cr += (gv - cr) * grayAmt;
+                  cg += (gv - cg) * grayAmt;
+                  cb += (gv - cb) * grayAmt;
+                }
+                raw[ti] = Math.round(cr);
+                raw[ti+1] = Math.round(cg);
+                raw[ti+2] = Math.round(cb);
+              }
+              await sharp(raw, { raw: { width: w2, height: h2, channels: 4 } }).png().toFile(ctx.outputPath);
+            } catch(te) {}
+        }
+        }
       }
     } catch(e) {
       // 保存失败则跳过
