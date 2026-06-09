@@ -179,20 +179,16 @@ async function openViewer(p) {
   log("✔ 已打开查看器: " + p.name, "done");
 }
 
-async function runOne(projectName, script) {
-  const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
-  const gameDir = stored[projectName];
-  if (!gameDir) {
-    log(`项目「${projectName}」未关联游戏目录`, 'err');
-    return;
-  }
+async function runOne(projectId, script) {
+  var info = await electronAPI.getProjectById(projectId);
+  if (!info || !info.gameDir) { log('项目未关联游戏目录', 'err'); return; }
 
   const label = script === 'tilesets' ? '导出 tileset' : (script === 'transfers' ? '提取传送点' : '渲染地图');
   log(`▶ ${label}...`, 'info');
   document.getElementById('statusBar').textContent = `正在${label}...`;
 
   try {
-    await electronAPI.runScript(script, gameDir);
+    await electronAPI.runScript(script, projectId);
     refreshList();
     document.getElementById('statusBar').textContent = `${label} 完成`;
     log(`✔ ${label} 完成`, 'done');
@@ -202,13 +198,9 @@ async function runOne(projectName, script) {
   }
 }
 
-async function runAll(projectName) {
-  const stored = JSON.parse(localStorage.getItem('gameDirs') || '{}');
-  const gameDir = stored[projectName];
-  if (!gameDir) {
-    log(`项目「${projectName}」未关联游戏目录`, 'err');
-    return;
-  }
+async function runAll(projectId) {
+  var info = await electronAPI.getProjectById(projectId);
+  if (!info) { log('项目未找到', 'err'); return; }
 
   log(`▶ 全流程开始...`, 'info');
   document.getElementById('statusBar').textContent = '全流程执行中...';
