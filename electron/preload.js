@@ -7,12 +7,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanProjects: () => ipcRenderer.invoke('scan-projects'),
   addProject: () => ipcRenderer.invoke('add-project'),
   getProjectById: (id) => ipcRenderer.invoke('get-project-by-id', id),
-  runScript: (script, gameDir) => ipcRenderer.invoke('run-script', script, gameDir),
-  deleteProject: (name) => ipcRenderer.invoke('delete-project', name),
-  clearMaps: (name) => ipcRenderer.invoke('clear-maps', name),
+  runScript: (script, projectId) => ipcRenderer.invoke('run-script', script, projectId),
+  deleteProject: (id) => ipcRenderer.invoke('delete-project', id),
+  clearMaps: (id) => ipcRenderer.invoke('clear-maps', id),
 
   // 查看器
-  openViewer: (name, gameDir, projectDir) => ipcRenderer.invoke('open-viewer', name, gameDir, projectDir),
+  openViewer: (id) => ipcRenderer.invoke('open-viewer', id),
   loadMapInfos: (gameDir) => ipcRenderer.invoke('load-map-infos', gameDir),
   getMapDimensions: (gameDir, mapId) => ipcRenderer.invoke('get-map-dimensions', gameDir, mapId),
   readDataFile: (path) => ipcRenderer.invoke('read-data-file', path),

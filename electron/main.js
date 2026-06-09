@@ -260,7 +260,12 @@ ipcMain.handle('clear-maps', (event, name) => {
 
 
 // ─── 查看器 IPC ──────────────────────────────────────────────
-ipcMain.handle('open-viewer', (event, projectName, gameDir, projectDir) => {
+ipcMain.handle('open-viewer', (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry || !entry.gameDir) return false;
+  var projectName = entry.name;
+  var gameDir = entry.gameDir;
   const viewer = new BrowserWindow({
     width: 1400, height: 900,
     title: 'RPGmaper - ' + projectName,
