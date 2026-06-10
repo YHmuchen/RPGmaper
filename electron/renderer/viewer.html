@@ -1047,6 +1047,8 @@ function loadPlmLayers(mapId) {
   _plmLayers = null;
   _plmLoaded = false;
   fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  // 检查 ParallaxLayer 插件是否启用
+  if (localStorage.getItem('plugin_ParallaxLayer') === 'false') return;
   var plmDir = getPlmDir(mapId);
   if (!window.electronAPI || !window.electronAPI.readDataFile) return;
   electronAPI.readDataFile(plmDir + '/info.json').then(function(json) {
@@ -1088,7 +1090,9 @@ function drawFx() {
   var baseData = fctx.getImageData(0, 0, w, h);
   var bp = baseData.data;
 
-  if (_plmLayers) {
+  // ParallaxLayer 插件关闭时跳过 PLM 合成
+  var _plmPluginOn = localStorage.getItem('plugin_ParallaxLayer') !== 'false';
+  if (_plmLayers && _plmPluginOn) {
     // 时段透明度：光照/阴影层随昼→夜渐变
     var timeFactor = _toneEnabled ? ({day: 0, evening: 0.35, night: 1.0}[_timePeriod] || 0) : 1;
     _plmLayers.forEach(function(layer) {
