@@ -135,8 +135,8 @@ function createProjectCard(p) {
 
   card.querySelector('.btn-ts').addEventListener('click', () => runOne(p.id, 'tilesets'));
   card.querySelector(".proj-title").addEventListener("click", () => openViewer(p));
-  card.querySelector('.btn-map').addEventListener('click', () => runOne(p.name, 'maps'));
-  card.querySelector('.btn-tr').addEventListener('click', () => runOne(p.name, 'transfers'));
+  card.querySelector('.btn-map').addEventListener('click', () => runOne(p.id, 'maps'));
+  card.querySelector('.btn-tr').addEventListener('click', () => runOne(p.id, 'transfers'));
   card.querySelector('.btn-all').addEventListener('click', () => runAll(p.id));
   card.querySelector('.btn-plugin').addEventListener('click', () => openProjectPlugins(p.id, p.name));
   card.querySelector('.btn-clear').addEventListener('click', async () => {
