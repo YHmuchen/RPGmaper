@@ -14,13 +14,16 @@ module.exports = {
   description: '根据时段替换地图 tile（窗户昼夜变化）',
   hook: 'mapStart',
   tags: ['TIME_VAR', 'tile', 'project:3'],
+  params: [
+    { name: 'time', type: 'int', default: 1, label: '時間帯 (0=朝 1=昼 2=夕 3=夜)' },
+  ],
 
   process: function(ctx) {
     var map = ctx.map;
     if (!map || !map.events) return;
 
     // 读时段: 0=朝 1=昼 2=夕 3=夜
-    var timeVar = global['TIME_VARIABLE_31'];
+    var timeVar = ctx.params && ctx.params.time !== undefined ? ctx.params.time : global['TIME_VARIABLE_31'];
     if (timeVar === undefined || timeVar === null) timeVar = 1;
 
     // 白天不做窗口替换

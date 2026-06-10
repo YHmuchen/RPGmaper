@@ -65,6 +65,17 @@ function pluginMatchesProject(p, projectName, projectId) {
   });
 })();
 
+// 收集所有插件的参数声明
+const PLUGIN_PARAMS = (function() {
+  var map = {};
+  PLUGINS.forEach(function(p) {
+    if (p.params) p.params.forEach(function(param) {
+      map[param.name] = param;
+    });
+  });
+  return map;
+})();
+
 // 按项目名/ID 过滤 HOOKS（只保留匹配项目的插件）
 function loadPluginsForProject(projectName, projectId) {
   Object.keys(HOOKS).forEach(function(hook) {
@@ -89,12 +100,24 @@ const TILE_ID_A3 = 4352;
 const TILE_ID_A4 = 5888;
 const TILE_ID_MAX = 8192;
 
-// 游戏目录：优先用命令行参数 > 环境变量 > 默认值
-const BAKED = process.argv.slice(2).includes('--bake');
+// ─── CLI 参数解析 ──────────────────────────────────────────
+const _cliArgs = (() => {
+  var a = process.argv.slice(2), out = {}, rest = [];
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] === '--bake') { out.bake = true; continue; }
+    if (a[i] === '--output' && a[i+1]) { out.output = a[++i]; continue; }
+    if (a[i] === '--time' && a[i+1]) { out.time = a[++i]; continue; }
+    rest.push(a[i]);
+  }
+  out.args = rest;
+  return out;
+})();
+const BAKED = _cliArgs.bake;
+const EXPORT_PATH = _cliArgs.output;
+if (_cliArgs.time) process.env.TIME_VAR_31 = _cliArgs.time;
 
 const GAME_DIR = (() => {
-  const args = process.argv.slice(2).filter(a => a !== '--bake');
-  const dirArg = args.find(a => isNaN(parseInt(a)));
+  const dirArg = _cliArgs.args.find(a => isNaN(parseInt(a)));
   if (dirArg) return dirArg;
   if (process.env.GAME_DIR) return process.env.GAME_DIR;
   return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
@@ -515,7 +538,7 @@ async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
     } else if (img.characterName && img.characterName.length > 0) {
       // 运行 beforeSprite 钩子插件（可替换精灵图、修改提取方式）
       const ctx = {};
-      if (HOOKS.beforeSprite) for (var hi = 0; hi < HOOKS.beforeSprite.length; hi++) { HOOKS.beforeSprite[hi].process(ev, ctx); }
+      if (HOOKS.beforeSprite) for (var hi = 0; hi < HOOKS.beforeSprite.length; hi++) { HOOKS.beforeSprite[hi].process(ev, ctx); if (ctx._params === undefined) ctx._params = _cliArgs; }
       // 插件标记跳过渲染（如无精灵图的模板标记事件）
       if (ctx._skipRender) continue;
       // 支持插件替换精灵（如 TemplateEvent 的 <TE:xxx> 替换）
@@ -719,11 +742,17 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   var nightSuffix = (global['TIME_VARIABLE_31'] || 1) >= 3 ? '_night.png' : '.png';
   const outName = 'Map' + String(mapId).padStart(4, '0') + nightSuffix;
   const outPath = OUT_DIR + '/' + outName;
+  // 保存纯净底图到地图文件夹（始终干净）
   await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
 
-  // 运行 postRender 钩子插件（叠加视差图层、滤镜等，文件已保存可读写）
-  if (HOOKS.postRender) for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
-    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: outPath, baked: BAKED });
+  // 后处理（烘焙 PLM+色调），输出到导出路径，不影响底图
+  if (HOOKS.postRender) {
+    var bakePath = EXPORT_PATH || outPath;
+    // 导出路径与底图不同时，先拷贝底图过去
+    if (EXPORT_PATH && EXPORT_PATH !== outPath) fs.copyFileSync(outPath, EXPORT_PATH);
+    for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
+      await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: bakePath, baked: BAKED });
+    }
   }
 
   // 输出 tilemap sidecar（不带时段后缀，昼夜共用）
