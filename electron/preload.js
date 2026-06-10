@@ -3,13 +3,16 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // 项目管理
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  setProjectGameDir: (id) => ipcRenderer.invoke('set-project-game-dir', id),
   scanProjects: () => ipcRenderer.invoke('scan-projects'),
   addProject: () => ipcRenderer.invoke('add-project'),
-  runScript: (script, gameDir) => ipcRenderer.invoke('run-script', script, gameDir),
-  deleteProject: (name) => ipcRenderer.invoke('delete-project', name),
+  getProjectById: (id) => ipcRenderer.invoke('get-project-by-id', id),
+  runScript: (script, projectId) => ipcRenderer.invoke('run-script', script, projectId),
+  deleteProject: (id) => ipcRenderer.invoke('delete-project', id),
+  clearMaps: (id) => ipcRenderer.invoke('clear-maps', id),
 
   // 查看器
-  openViewer: (name, gameDir, projectDir) => ipcRenderer.invoke('open-viewer', name, gameDir, projectDir),
+  openViewer: (id) => ipcRenderer.invoke('open-viewer', id),
   loadMapInfos: (gameDir) => ipcRenderer.invoke('load-map-infos', gameDir),
   getMapDimensions: (gameDir, mapId) => ipcRenderer.invoke('get-map-dimensions', gameDir, mapId),
   readDataFile: (path) => ipcRenderer.invoke('read-data-file', path),

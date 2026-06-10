@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const PROJECTS_DIR = path.join(PROJECT_ROOT, 'maps', 'projects');
+const PROJECTS_JSON = path.join(PROJECTS_DIR, 'projects.json');
 
 let mainWindow = null;
 
@@ -53,20 +54,54 @@ function createWindow() {
 }
 
 // ─── 项目管理 ─────────────────────────────────────────────────
+function loadProjects() {
+  if (!fs.existsSync(PROJECTS_JSON)) return {};
+  try { return JSON.parse(fs.readFileSync(PROJECTS_JSON, 'utf8')); } catch(e) { return {}; }
+}
+
+function saveProjects(data) {
+  fs.writeFileSync(PROJECTS_JSON, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function ensureProjectsIndex() {
+  var data = loadProjects();
+  var changed = false;
+  var maxId = Object.keys(data).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+  if (!fs.existsSync(PROJECTS_DIR)) return data;
+  fs.readdirSync(PROJECTS_DIR).forEach(function(name) {
+    if (name === 'projects.json' || name === '.' || name === '..') return;
+    var dir = path.join(PROJECTS_DIR, name);
+    if (!fs.statSync(dir).isDirectory()) return;
+    var existing = Object.keys(data).find(function(k) { return data[k].name === name; });
+    if (!existing) {
+      maxId++;
+      data[String(maxId)] = { name: name };
+      changed = true;
+    }
+  });
+  if (changed) saveProjects(data);
+  return data;
+}
+
+function getProjectDir(name) {
+  return path.join(PROJECTS_DIR, name);
+}
+
 function scanProjects() {
-  const projects = [];
-  if (!fs.existsSync(PROJECTS_DIR)) return projects;
-  for (const name of fs.readdirSync(PROJECTS_DIR)) {
-    const dir = path.join(PROJECTS_DIR, name);
-    if (!fs.statSync(dir).isDirectory()) continue;
-    const tilesets = fs.existsSync(path.join(dir, 'tilesets'))
-      ? fs.readdirSync(path.join(dir, 'tilesets')).filter(f => f.endsWith('.png')).length : 0;
-    const trans = fs.existsSync(path.join(dir, 'transfers_data.js')) ? true : false;
-    const tilemapJS = fs.existsSync(path.join(dir, 'maps', 'tilemaps_data.js')) ? true : false;
-    const maps = fs.existsSync(path.join(dir, 'maps'))
-      ? fs.readdirSync(path.join(dir, 'maps')).filter(f => f.endsWith('.png')).length : 0;
-    projects.push({ name, tilesets, maps, hasTransfers: trans, hasTilemaps: tilemapJS });
-  }
+  var index = ensureProjectsIndex();
+  var projects = [];
+  Object.keys(index).forEach(function(id) {
+    var entry = index[id];
+    var dir = path.join(PROJECTS_DIR, entry.name);
+    if (!fs.existsSync(dir)) return;
+    var tilesets = fs.existsSync(path.join(dir, 'tilesets'))
+      ? fs.readdirSync(path.join(dir, 'tilesets')).filter(function(f) { return f.endsWith('.png'); }).length : 0;
+    var trans = fs.existsSync(path.join(dir, 'transfers_data.js')) ? true : false;
+    var tilemapJS = fs.existsSync(path.join(dir, 'maps', 'tilemaps_data.js')) ? true : false;
+    var maps = fs.existsSync(path.join(dir, 'maps'))
+      ? fs.readdirSync(path.join(dir, 'maps')).filter(function(f) { return f.endsWith('.png'); }).length : 0;
+    projects.push({ id: Number(id), name: entry.name, tilesets: tilesets, maps: maps, hasTransfers: trans, hasTilemaps: tilemapJS });
+  });
   return projects;
 }
 
@@ -113,7 +148,28 @@ ipcMain.handle('add-project', async () => {
   return scanProjects();
 });
 
-ipcMain.handle('run-script', (event, scriptName, gameDir) => {
+ipcMain.handle('set-project-game-dir', async (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry) return false;
+  var result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: '选择游戏目录 - ' + entry.name,
+  });
+  if (result.canceled) return false;
+  entry.gameDir = result.filePaths[0].replace(/\\/g, '/');
+  saveProjects(index);
+  return true;
+});
+
+ipcMain.handle('get-project-by-id', (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry) return null;
+  return { id: Number(projectId), name: entry.name, gameDir: entry.gameDir || '' };
+});
+
+ipcMain.handle('run-script', (event, scriptName, projectId) => {
   const scripts = {
     tilesets: { file: 'scripts/extract-tilesets.js', label: '导出 tileset' },
     transfers: { file: 'scripts/extract-transfers.js', label: '提取传送点' },
@@ -148,10 +204,17 @@ ipcMain.handle('run-script', (event, scriptName, gameDir) => {
   const scriptPath = path.join(PROJECT_ROOT, s.file);
   if (!fs.existsSync(scriptPath)) return { ok: true, skipped: true };
 
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry || !entry.gameDir) return { ok: false, error: "项目 ID " + projectId + " 未找到或未关联游戏目录" };
+  var gameDir = entry.gameDir;
+  var projectName = entry.name;
+
   return new Promise(resolve => {
     let timer = setTimeout(() => { proc.kill(); resolve({ ok: false, error: "脚本执行超时" }); }, 600000);
     const proc = spawn("node", [scriptPath, gameDir], {
       cwd: PROJECT_ROOT,
+      env: Object.assign({}, process.env, { PROJECT_ID: String(projectId), PROJECT_NAME: projectName }),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -183,9 +246,26 @@ ipcMain.handle('delete-project', (event, name) => {
   return scanProjects();
 });
 
+ipcMain.handle('clear-maps', (event, name) => {
+  const dir = path.resolve(PROJECTS_DIR, name);
+  if (!dir.startsWith(path.resolve(PROJECTS_DIR))) return scanProjects();
+  const mapsDir = path.join(dir, 'maps');
+  const tilesetsDir = path.join(dir, 'tilesets');
+  const parallaxDir = path.join(dir, 'parallax');
+  if (fs.existsSync(mapsDir)) fs.rmSync(mapsDir, { recursive: true, force: true });
+  if (fs.existsSync(tilesetsDir)) fs.rmSync(tilesetsDir, { recursive: true, force: true });
+  if (fs.existsSync(parallaxDir)) fs.rmSync(parallaxDir, { recursive: true, force: true });
+  return scanProjects();
+});
+
 
 // ─── 查看器 IPC ──────────────────────────────────────────────
-ipcMain.handle('open-viewer', (event, projectName, gameDir, projectDir) => {
+ipcMain.handle('open-viewer', (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry || !entry.gameDir) return false;
+  var projectName = entry.name;
+  var gameDir = entry.gameDir;
   const viewer = new BrowserWindow({
     width: 1400, height: 900,
     title: 'RPGmaper - ' + projectName,
@@ -322,7 +402,7 @@ ipcMain.handle('get-plugins', () => {
       const tags = val(/tags:\s*\[([^\]]+)\]/, '');
       const tagList = tags ? tags.split(',').map(t => t.trim().replace(/['"]/g, '')) : [];
       const enabled = src.includes('process:') && src.includes('function');
-      return { file: f, name, description: desc, hook, tags: tagList, enabled };
+      return { file: f, name, description: desc, hook, tags: tagList, enabled, project: tagList.filter(function(t){return t.indexOf('project:')===0;}).map(function(t){return t.slice(8);})[0] || '' };
     } catch (e) {
       return { file: f, name: f.replace('.js', ''), description: '读取失败', hook: '?', tags: [], enabled: false };
     }
@@ -333,7 +413,7 @@ ipcMain.handle('import-plugin', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [{ name: '插件文件', extensions: ['js'] }],
-    title: '导入插件',
+    title: '导入全局插件',
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   const srcPath = result.filePaths[0];

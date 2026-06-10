@@ -55,106 +55,107 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. [步骤] → 验证：[检查项]
 3. [步骤] → 验证：[检查项]
 
-强的成功标准让你能独立闭环；弱的（比如"让它跑起来"）会让你不停回来问我。
-
 ---
 
 ## 项目架构
 
-RPGmaper 是一个从 RPG Maker MZ/MV 游戏提取地图、tileset 和视差背景的工具。
+RPGmaper 是一个从 RPG Maker MZ/MV 游戏离线提取 tileset、渲染地图、分析传送点的工具。
 
 ### 目录结构
 
 ```
 RPGmaper/
-│
-
-### 入口方式
-
-- **Desktop GUI**: `rpgmaper.bat` → Electron 桌面管理器，项目化管理多个游戏
-- **CLI 脚本**: `render-maps.bat` / `node scripts/render-maps.js` 直接运行
-
-### 目录结构
-
-RPGmaper/
-├── *.bat                          # Windows 便捷入口
-│   ├── rpgmaper.bat               # 启动 Electron 桌面管理器
-│   ├── render-maps.bat            # 直接运行 render-maps.js
-│   ├── extract-tilesets.bat       # 导出 tileset
-├── scripts/                       # CLI 脚本 (Node.js)
-│   ├── render-maps.js             # [核心] 离线地图渲染器（sharp 像素合成）
-│   ├── extract-tilesets.js        # [核心] 从游戏目录导出 tileset 图片（含解密）
-│   ├── extract-transfers.js       # [核心] 提取所有地图传送点（可解析公共事件链）
-│   ├── test-pipeline.js           # 全流程自动化测试（tileset→渲染→抽样检查）
-│   ├── api-server.js              # HTTP API 服务（地图关系/布局数据）
-│   ├── stitch-maps.js             # 将地图按传送关系拼合成无缝世界图
-├── electron/                      # Electron 桌面管理器
-│   ├── main.js                    # 主进程：项目管理、运行脚本、菜单
-│   ├── preload.js                 # contextBridge：暴露 scanProjects/runScript 等 API
-│   └── renderer/index.html        # GUI：项目卡片、日志面板、按钮触发 tileset/地图/全流程
-├── docs/                          # 文档与查看器
-│   ├── map-viewer.html            # 地图关系查看器（加载 transfers_data.js）
-│   ├── transfers_data.js          # [自动生成] 传送点数据
-│   └── sample_*.jpg/png           # 示例输出
-└── maps/                          # 输出目录
-    └── projects/                  # 按游戏项目组织
-        └── <projectName>/
-            ├── tilesets/          # 导出的 tileset PNG
-            ├── maps/              # 渲染的地图 PNG
-            ├── parallax/          # 视差背景图
-            ├── test-report.json   # 测试报告
-            └── transfers_data.js  # 传送点数据（从 docs 复制）
+├── rpgmaper.bat                    # 启动 Electron 桌面管理器
+├── scripts/
+│   ├── render-maps.js              # [核心] 离线地图渲染器（sharp 像素合成）
+│   ├── extract-tilesets.js         # [核心] tileset 导出（含解密）
+│   ├── extract-transfers.js        # [核心] 传送点提取
+│   ├── test-pipeline.js            # 全流程自动化测试
+│   ├── api-server.js               # HTTP API 服务
+│   ├── stitch-maps.js              # 无缝世界图拼接
+│   └── plugins/                    # 渲染管线插件
+│       ├── TileTime.js             # 时段 tile 替换（project:3）
+│       ├── TemplateEvent.js        # TE 模板事件（project:3）
+│       ├── ParallaxLayer.js        # PLM 视差图层（project:3）
+│       ├── MapTone.js              # 色调系统标记（查看器端执行）
+│       ├── NightRender.js          # 夜间渲染脚本注册（global）
+│       └── CGShift.js              # CG 偏移校正（project:3）
+├── electron/
+│   ├── main.js                     # 主进程：项目管理、IPC、菜单
+│   ├── preload.js                  # contextBridge API
+│   └── renderer/
+│       ├── index.html              # 桌面 GUI（项目卡片、全流程、插件管理）
+│       ├── viewer.html             # 地图查看器（canvas 渲染、PLM 合成、色调）
+│       └── viewer-plugins/         # 查看器插件（UI 控件注册）
+├── docs/
+│   ├── transfers_data.js           # [自动生成] 传送点数据
+│   └── map22_*.png                 # README 展示图
+└── maps/
+    └── projects/
+        ├── projects.json           # [自动生成] 项目 ID 索引
+        └── <projectName>/          # 按项目组织
+            ├── tilesets/           # 导出的 tileset PNG
+            ├── maps/               # 渲染的地图 + tilemap sidecar
+            ├── parallax/           # 视差背景图
+            └── transfers_data.js   # 传送点数据
 ```
 
-### 核心数据流（离线管线）
+### 核心概念
 
-1. **`extract-tilesets.js`** → 从游戏 `img/tilesets/` 读取加密 `.png_` 文件，用 System.json 中的 `encryptionKey` 解密（RPGMV 格式：16 字节头 `RPGMV\0\0\0\0\0\x03\x01\0\0\0\0\0` + body 前 16 字节与 key XOR），输出 PNG 到 `maps/projects/<name>/tilesets/`
-2. **`render-maps.js`** → 读取 `data/Map*.json`，加载 tileset PNG，按 RPG Maker tile 系统（A1-A5, B-E, 阴影层）逐像素合成，输出到 `maps/projects/<name>/maps/`
-3. **`extract-transfers.js`** → 扫描 Map JSON 中的 Transfer Player 指令（code=201），递归解析公共事件调用链（code=117），输出 `docs/transfers_data.js`
+- **插件归属**：`scripts/plugins/` 统一存放，通过 `tags` 区分。`global` 表示全局加载，`project:<ID>` 表示仅该项目加载。无标签视为全局。
+- **projects.json**：在 `maps/projects/` 下自动生成，映射数字 ID → 项目名 → gameDir。所有 IPC 传 ID。
+- **渲染管线**：`render-maps.js` 先输出纯 tile PNG，然后在 postRender 钩子中由 ParallaxLayer 插件处理 `--bake`（合入 PLM + 色调）。
+- **查看器**：`viewer.html` 通过 `drawFx()` 叠加 PLM 图层和色调，可开关。
 
-### 关键实现细节
+### 渲染管线数据流
 
-- **Tile 尺寸**: 48×48px，autotile 子块 24×24px
-- **地图数据布局**: 4 层 tile (z=0,1,2,3) + 1 层阴影 (z=4)，扁平数组索引公式 `(z * h + y) * w + x`
-- **Autotile 类型**: A1 (流水/动画), A2 (地板), A3 (墙壁), A4 (墙壁/屋顶), A5 (普通)
-- **Autotile 渲染**: 使用 RPG Maker 的 48 种形状表（`FLOOR_AUTOTILE_TABLE` / `WALL_AUTOTILE_TABLE` / `WATERFALL_AUTOTILE_TABLE`），每格拆 4 个子块
-- **阴影层**: 半透黑 overlay（alpha 0.35），公式 `dst = dst * (1 - 0.35 * dst.alpha)`
-- **RPGMV 加密**: 文件头 16 字节签名校验，body 前 16 字节与 `encryptionKey` XOR；key 从 System.json 读取（32 hex→16 bytes）
-- **大片地图**: 支持分 strip 渲染（`MAX_H=3800px`），用 sharp 的 composite 合成
-- **视差地图**: 先解密 `img/parallaxes/*.png_`，缩放填满地图尺寸，再在其上叠加 tile
+1. **`extract-tilesets.js`** → 解密 `.png_` → `maps/projects/<name>/tilesets/`
+2. **`render-maps.js`** → 读取 Map JSON + tileset PNG → sharp 逐像素合成（A1-A5, B-E, 阴影层）→ `maps/projects/<name>/maps/`
+3. **`extract-transfers.js`** → 扫描 code=201 传送指令，递归解析公共事件 → `transfers_data.js`
 
-### 杂项
+### 插件钩子系统
 
-- **加密密钥**: `System.json` 中 `encryptionKey` 字段，32 位 hex 字符串
+| 钩子 | 时机 | 用途 |
+|------|------|------|
+| `mapStart` | 渲染开始前 | 修改 map.data、事件 tile |
+| `beforeSprite` | 每个事件精灵渲染前 | 替换/跳过精灵 |
+| `eventSprite` | 事件精灵渲染后 | 后处理精灵 |
+| `postRender` | 整张地图输出后 | 叠加图层、色调（--bake） |
+| `mapEnd` | 所有输出完成后 | 收尾 |
+
+### --bake 模式
+
+`node scripts/render-maps.js --bake <gameDir> <mapId>` 在渲染时合入 PLM 图层和 MapTone 色调，用于出展示图。默认不加 `--bake` 时输出纯净 tile PNG（供查看器用）。
+
+---
 
 ## 常用命令
 
-### 离线渲染管线
+### 渲染管线
 
 ```bash
-# 1. tileset 导出（必须先执行）
+# 1. 导出 tileset（必须先执行）
 node scripts/extract-tilesets.js <游戏目录>
 
-# 2. 渲染所有地图
+# 2. 渲染地图（默认模式，供查看器用）
 node scripts/render-maps.js <游戏目录>
-
-# 3. 渲染指定地图（支持多个 ID）
 node scripts/render-maps.js <游戏目录> 1 5 10 15
 
-# 4. 全流程测试（tileset 导出 → 渲染 → 抽样检查 PNG 尺寸）
+# 3. 带 PLM+色调 渲染（--bake 模式，出展示图用）
+TIME_VAR_31=3 node scripts/render-maps.js --bake <游戏目录> 22
+
+# 4. 指定时段
+TIME_VAR_31=0 node scripts/render-maps.js <游戏目录> 22  # 朝
+TIME_VAR_31=1 node scripts/render-maps.js <游戏目录> 22  # 昼
+TIME_VAR_31=2 node scripts/render-maps.js <游戏目录> 22  # 夕
+TIME_VAR_31=3 node scripts/render-maps.js <游戏目录> 22  # 夜
+
+# 5. 全流程测试
 node scripts/test-pipeline.js <游戏目录>
 node scripts/test-pipeline.js <游戏目录> --verbose
 
-# 5. 提取传送点
+# 6. 提取传送点
 node scripts/extract-transfers.js <游戏目录>
-```
-
-### API 服务
-
-```bash
-# 启动地图关系 API（默认端口 3456）
-node scripts/api-server.js
-node scripts/api-server.js 8080
 ```
 
 ### Electron 桌面应用
@@ -165,4 +166,23 @@ npm start
 rpgmaper.bat
 ```
 
+### API 服务
 
+```bash
+node scripts/api-server.js
+node scripts/api-server.js 8080
+```
+
+---
+
+## 关键实现细节
+
+- **Tile 尺寸**: 48×48px，autotile 子块 24×24px
+- **地图数据布局**: 4 层 tile (z=0,1,2,3) + 1 层阴影 (z=4)，`(z * h + y) * w + x`
+- **Autotile**: 48 种形状表（`FLOOR_AUTOTILE_TABLE` / `WALL_AUTOTILE_TABLE` / `WATERFALL_AUTOTILE_TABLE`）
+- **阴影层**: 半透黑 overlay（alpha 0.35），`dst = dst * (1 - 0.35 * dst.alpha)`
+- **RPGMV 加密**: 16 字节头 `RPGMV\0…\x03\x01` + body 前 16 字节与 key XOR
+- **大片地图**: 分 strip 渲染（`MAX_H=3800px`），sharp composite 合成
+- **时段变量**: Variable 31（0=朝 1=昼 2=夕 3=夜），插件 TileTime 使用
+- **PLM 视差图层**: 事件 note 中的 `<PLM:file>` 标签，插件 ParallaxLayer 处理
+- **色调**: 查看器端 `drawFx()` 按 `<MAPTYPE>` 和时段叠加

@@ -224,17 +224,10 @@ maps/projects/<项目名>/
 | **Autotile** | 48 种形状表（地板/墙壁/瀑布），每格拆 4 子块合成 |
 | **阴影层** | 半透黑 overlay，alpha 0.35，`dst = dst × (1 - 0.35 × dst.alpha)` |
 | **RPG MV 加密** | 16 字节头 `RPGMV\0\0\0\0\0\x03\x01\0\0\0\0\0` + body 前 16 字节与 key XOR |
-| **时段变量** | Variable 31：0=朝 1=昼 2=夕 3=夜 |
+| **时段变量**（插件 TileTime） | Variable 31：0=朝 1=昼 2=夕 3=夜 |
+| **色调系统**（插件 MapTone） | 按 `<MAPTYPE>` 和时段叠加色调偏移，查看器端生效 |
+| **视差图层**（插件 ParallaxLayer） | 从事件 note 解析 `<PLM:file>`，输出图层到 `MapXXXX_plm/` |
 | **加密密钥** | `System.json` 中 `encryptionKey` 字段，32 位 hex 字符串 |
-
----
-
-## 🙏 致谢
-
-- [RPG Maker MZ/MV](https://www.rpgmakerweb.com/) — Tile 系统和数据格式
-- [sharp](https://sharp.pixelplumbing.com/) — 高性能图像处理
-- [Electron](https://www.electronjs.org/) — 桌面应用框架
-- [chrome-remote-interface](https://github.com/cyrus-and/chrome-remote-interface) — 初期 CDP 方案
 
 ---
 

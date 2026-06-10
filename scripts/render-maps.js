@@ -21,6 +21,27 @@ function readJSON(fp) {
 const VALID_HOOKS = ['mapStart', 'mapEnd', 'beforeSprite', 'eventSprite', 'postRender'];
 const PLUGINS = [];
 const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
+
+// 检查插件是否对当前项目生效
+function pluginMatchesProject(p, projectName, projectId) {
+  if (!p.tags || p.tags.length === 0) return true;
+  var hasProject = false;
+  for (var ti = 0; ti < p.tags.length; ti++) {
+    var t = p.tags[ti];
+    if (t === 'global') return true;
+    if (t.indexOf('project:') === 0) {
+      hasProject = true;
+      var pn = t.slice(8).trim();
+      // CLI 模式（无 projectId）不过滤 project: 标签
+      if (!projectId) return true;
+      // 支持按数字 ID 或目录名匹配
+      if (pn === projectName || pn === projectId) return true;
+    }
+  }
+  if (hasProject) return false;
+  return true;
+}
+
 (function loadPlugins() {
   const dir = path.join(__dirname, 'plugins');
   if (!fs.existsSync(dir)) return;
@@ -33,7 +54,7 @@ const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
           return;
         }
         PLUGINS.push(p);
-        // 按钩子分组缓存
+        // 按钩子分组缓存（由 loadPluginsForProject 按项目过滤后使用）
         if (p.hook) {
           (HOOKS[p.hook] || (HOOKS[p.hook] = [])).push(p);
         }
@@ -43,6 +64,26 @@ const HOOKS = {};  // { 'mapStart': [plugin, ...] } — 按钩子分组缓存
     }
   });
 })();
+
+// 收集所有插件的参数声明
+const PLUGIN_PARAMS = (function() {
+  var map = {};
+  PLUGINS.forEach(function(p) {
+    if (p.params) p.params.forEach(function(param) {
+      map[param.name] = param;
+    });
+  });
+  return map;
+})();
+
+// 按项目名/ID 过滤 HOOKS（只保留匹配项目的插件）
+function loadPluginsForProject(projectName, projectId) {
+  Object.keys(HOOKS).forEach(function(hook) {
+    HOOKS[hook] = HOOKS[hook].filter(function(p) {
+      return pluginMatchesProject(p, projectName, projectId);
+    });
+  });
+}
 
 // ─── 常量 ───────────────────────────────────────────────────────
 const TILE = 48;
@@ -59,11 +100,24 @@ const TILE_ID_A3 = 4352;
 const TILE_ID_A4 = 5888;
 const TILE_ID_MAX = 8192;
 
-// 游戏目录：优先用命令行参数 > 环境变量 > 默认值
+// ─── CLI 参数解析 ──────────────────────────────────────────
+const _cliArgs = (() => {
+  var a = process.argv.slice(2), out = {}, rest = [];
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] === '--bake') { out.bake = true; continue; }
+    if (a[i] === '--output' && a[i+1]) { out.output = a[++i]; continue; }
+    if (a[i] === '--time' && a[i+1]) { out.time = a[++i]; continue; }
+    rest.push(a[i]);
+  }
+  out.args = rest;
+  return out;
+})();
+const BAKED = _cliArgs.bake;
+const EXPORT_PATH = _cliArgs.output;
+if (_cliArgs.time) process.env.TIME_VAR_31 = _cliArgs.time;
+
 const GAME_DIR = (() => {
-  const args = process.argv.slice(2);
-  // 第一个不以数字开头的参数视为游戏目录路径
-  const dirArg = args.find(a => isNaN(parseInt(a)));
+  const dirArg = _cliArgs.args.find(a => isNaN(parseInt(a)));
   if (dirArg) return dirArg;
   if (process.env.GAME_DIR) return process.env.GAME_DIR;
   return 'E:/hhh/ce/操心の魔導具-ver1.3.0_';
@@ -87,11 +141,19 @@ global['TIME_VARIABLE_31'] = isNaN(_tv) ? 1 : _tv;
 global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
-const PROJECT_DIR = (() => {
-  const base = path.resolve(__dirname, '..', 'maps', 'projects');
-  const name = path.basename(GAME_DIR).replace(/[\s_]+$/, '');
-  return path.join(base, name);
+const PROJECT_NAME = process.env.PROJECT_NAME || path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+const PROJECT_DIR = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), PROJECT_NAME);
+
+// 从 projects.json 查找项目数字 ID（未通过环境变量提供时自动查表）
+const _pj = (function() {
+  var p = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), 'projects.json');
+  if (!fs.existsSync(p)) return {};
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e) { return {}; }
 })();
+const PROJECT_ID = process.env.PROJECT_ID || Object.keys(_pj).find(function(k) { return _pj[k].name === PROJECT_NAME; }) || '';
+
+// 按项目名/ID 过滤插件（只加载 global 或 project:当前项目 的插件）
+loadPluginsForProject(PROJECT_NAME, PROJECT_ID);
 const TS_DIR        = PROJECT_DIR + '/tilesets/';
 const OUT_DIR       = PROJECT_DIR + '/maps/';
 const PARALLAX_DIR  = PROJECT_DIR + '/parallax/';
@@ -476,7 +538,7 @@ async function renderEvents(buf, outW, outH, map, tsNames, tsImgs) {
     } else if (img.characterName && img.characterName.length > 0) {
       // 运行 beforeSprite 钩子插件（可替换精灵图、修改提取方式）
       const ctx = {};
-      if (HOOKS.beforeSprite) for (var hi = 0; hi < HOOKS.beforeSprite.length; hi++) { HOOKS.beforeSprite[hi].process(ev, ctx); }
+      if (HOOKS.beforeSprite) for (var hi = 0; hi < HOOKS.beforeSprite.length; hi++) { HOOKS.beforeSprite[hi].process(ev, ctx); if (ctx._params === undefined) ctx._params = _cliArgs; }
       // 插件标记跳过渲染（如无精灵图的模板标记事件）
       if (ctx._skipRender) continue;
       // 支持插件替换精灵（如 TemplateEvent 的 <TE:xxx> 替换）
@@ -680,11 +742,17 @@ async function renderMap(mapId, tilesets, allMapIds, total) {
   var nightSuffix = (global['TIME_VARIABLE_31'] || 1) >= 3 ? '_night.png' : '.png';
   const outName = 'Map' + String(mapId).padStart(4, '0') + nightSuffix;
   const outPath = OUT_DIR + '/' + outName;
+  // 保存纯净底图到地图文件夹（始终干净）
   await sharp(lowerBuf, { raw: { width: outW, height: outH, channels: 4 } }).png().toFile(outPath);
 
-  // 运行 postRender 钩子插件（叠加视差图层、滤镜等，文件已保存可读写）
-  if (HOOKS.postRender) for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
-    await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: outPath });
+  // 后处理（烘焙 PLM+色调），输出到导出路径，不影响底图
+  if (HOOKS.postRender) {
+    var bakePath = EXPORT_PATH || outPath;
+    // 导出路径与底图不同时，先拷贝底图过去
+    if (EXPORT_PATH && EXPORT_PATH !== outPath) fs.copyFileSync(outPath, EXPORT_PATH);
+    for (var pi = 0; pi < HOOKS.postRender.length; pi++) {
+      await HOOKS.postRender[pi].process({ buf: lowerBuf, width: outW, height: outH, map: map, mapId: mapId, gameDir: GAME_DIR, outDir: OUT_DIR, outputPath: bakePath, baked: BAKED });
+    }
   }
 
   // 输出 tilemap sidecar（不带时段后缀，昼夜共用）
