@@ -74,35 +74,7 @@
 
 ## 🚀 快速开始
 
-### 方式一：CLI 命令行
-
-```bash
-# 1. 安装依赖
-npm install
-
-# 2. 导出 tileset（必须先执行）
-node scripts/extract-tilesets.js <游戏目录>
-
-# 3. 渲染地图
-node scripts/render-maps.js <游戏目录>        # 全部地图
-node scripts/render-maps.js <游戏目录> 1 5 10  # 指定地图
-
-# 4. 提取传送点
-node scripts/extract-transfers.js <游戏目录>
-
-# 5. 全流程测试（tileset 导出 → 渲染 → 抽样检查）
-node scripts/test-pipeline.js <游戏目录>
-node scripts/test-pipeline.js <游戏目录> --verbose
-```
-
-**指定时段渲染**（配合插件系统）：
-
-```bash
-# 渲染夜间版本（需要 NightRender 插件）
-TIME_VAR_31=3 node scripts/render-maps.js <游戏目录>
-```
-
-### 方式二：Electron 桌面应用
+Electron 桌面应用
 
 ```bash
 npm start
@@ -128,14 +100,6 @@ npm start
 <td>启用/禁用渲染插件，导入/导出插件文件</td>
 </tr>
 </table>
-
-### 方式三：HTTP API 服务
-
-```bash
-# 启动地图关系 API（默认端口 3456）
-node scripts/api-server.js
-node scripts/api-server.js 8080
-```
 
 ---
 
