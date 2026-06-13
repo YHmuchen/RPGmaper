@@ -18,6 +18,9 @@ docs/connections.json
 docs/visited_data.js
 docs/map_sizes.json
 
+# 批处理快捷键
+render-maps.bat
+
 # 系统文件
 *.lnk
 Thumbs.db
@@ -28,3 +31,4 @@ Thumbs.db
 .cursor/
 .kagent/
 .vscode/CLAUDE.md
+CLAUDE.md
