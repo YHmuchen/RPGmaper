@@ -139,9 +139,10 @@ const gridCanvas = document.getElementById('gridCanvas');
 const fxCanvas = document.getElementById('fxCanvas');
 const ctx = mapCanvas.getContext('2d');
 const gctx = gridCanvas.getContext('2d');
-const fctx = fxCanvas.getContext('2d');
+const fctx = fxCanvas.getContext('2d', { willReadFrequently: true }); // CPU 读回优化
 var _plmLayers = null; // [{ file, blend, opacity, img }]
 var _plmLoaded = false;
+var _fxTempCanvas = null; // 复用临时 canvas，避免逐帧分配 DOM
 const wrap = document.getElementById('canvasWrap');
 // 调整 canvas 层级顺序: mapCanvas → fxCanvas → gridCanvas
 (function() {
@@ -165,12 +166,88 @@ let MAP_NAMES = {};
  // { fromMap, fromFx, fromFy, toMap, toTx, toTy }
 let _skipSelectChange = false;
 
+// 查看器插件系统
+var VIEWER_PLUGINS = [];
+var VIEWER_PLUGIN_MAP = {}; // name -> plugin
+
+function registerViewerPlugin(plugin) {
+  if (VIEWER_PLUGIN_MAP[plugin.name]) return; // 去重
+  VIEWER_PLUGINS.push(plugin);
+  VIEWER_PLUGIN_MAP[plugin.name] = plugin;
+  plugin._enabled = localStorage.getItem('plugin_' + plugin.name) !== 'false';
+  // 渲染 UI 控件
+  if (plugin.ui) {
+    plugin.ui.forEach(function(item) {
+      if (item.type === 'select' && item.target === 'toolbar') {
+        // 检查是否已被其他插件添加
+        var existing = document.querySelector('.toolbar select[data-plugin="' + plugin.name + '"]');
+        if (existing) return;
+        // 检查是否已有同标签的原生控件
+        var toolbar = document.querySelector('.toolbar');
+        if (toolbar) {
+          var labels = toolbar.querySelectorAll('label');
+          var dup = false;
+          for (var i = 0; i < labels.length; i++) {
+            if (labels[i].textContent.trim() === (item.label || '').trim()) { dup = true; break; }
+          }
+          if (dup) return;
+        }
+        var sel = document.createElement('select');
+        sel.setAttribute('data-plugin', plugin.name);
+        sel.style.cssText = 'font-size:11px;padding:1px 4px;';
+        item.options.forEach(function(opt) {
+          sel.options[sel.options.length] = new Option(opt.label, opt.value);
+        });
+        sel.value = item.defaultValue || item.options[0].value;
+        sel.addEventListener('change', function() {
+          if (item.onChange) item.onChange(this.value);
+        });
+        // 插入到最后一个 select 后面
+        var ref = toolbar.querySelector('select:last-of-type');
+        if (ref && ref.parentNode) {
+          var label = document.createElement('label');
+          label.textContent = item.label + ' ';
+          label.style.cssText = 'color:#999;font-size:13px;';
+          label.appendChild(sel);
+          ref.parentNode.insertBefore(label, ref.nextSibling);
+        }
+      }
+    });
+  }
+}
+
+function fireViewerHook(hook, ctx) {
+  VIEWER_PLUGINS.forEach(function(p) {
+    // 实时读 localStorage（而非缓存的 _enabled），让开关即时生效
+    if (localStorage.getItem('plugin_' + p.name) !== 'false' && p.hook === hook && p.process) {
+      try { p.process(ctx); } catch(e) { console.error('插件 [' + p.name + '] 钩子 ' + hook + ' 失败:', e); }
+    }
+  });
+}
+
+function loadViewerPluginScripts() {
+  if (!window.electronAPI || !electronAPI.loadViewerPlugins) return Promise.resolve();
+  return electronAPI.loadViewerPlugins(PROJECT_DIR).then(function(plugins) {
+    return Promise.all(plugins.map(function(p) {
+      if (!p || !p.url) return Promise.resolve();
+      return new Promise(function(resolve) {
+        var s = document.createElement('script');
+        s.src = p.url;
+        s.onerror = function() { console.error('插件加载失败: ' + p.name); resolve(); };
+        s.onload = function() { resolve(); };
+        document.body.appendChild(s);
+      });
+    }));
+  }).catch(function(e) { console.error('加载插件列表失败:', e); });
+}
+
 document.getElementById('projectName').textContent = '🗺️ ' + PROJECT_NAME;
 
 // ─── IPC 加载数据 ──────────────────────────────────────────────
 async function loadData() {
   // 加载地图列表
   const infos = await electronAPI.loadMapInfos(GAME_DIR);
+  window.MAP_INFOS_RAW = infos; // 原始数据供插件使用（含 parentId/order）
   if (infos) {
     MAP_LIST = [];
     for (let i = 1; i < infos.length; i++) {
@@ -207,6 +284,11 @@ async function loadData() {
 
   // 更新下拉框
   updateDropdown();
+
+  // 加载查看器插件（异步，不影响初始渲染）
+  loadViewerPluginScripts().then(function() {
+    fireViewerHook('pluginsLoaded', {});
+  });
 }
 
 // ─── 下拉框 ───────────────────────────────────────────────────
@@ -258,6 +340,11 @@ function loadMap(mapId, entrySource) {
   const path = resolveMapPath(mapId);
   const pad = String(mapId).padStart(4, '0');
 
+  // 释放上一张图占用的 canvas GPU 内存
+  mapCanvas.width = 1; mapCanvas.height = 1;
+  gridCanvas.width = 1; gridCanvas.height = 1;
+  fxCanvas.width = 1; fxCanvas.height = 1;
+
   // 从同步加载的 tilemaps_data.js 中读取 tilemap
   tilemap = typeof TILEMAPS_ALL === 'object' && TILEMAPS_ALL ? TILEMAPS_ALL[mapId] : null;
   if (!tilemap) {
@@ -270,6 +357,9 @@ function loadMap(mapId, entrySource) {
   }
 
   var _fallbackTried = false;
+  // 仅在夜间模式时加载夜间图
+  if (_showNight) loadNightImage(path);
+
   img.onerror = function() {
     if (!_fallbackTried) {
       // 时段后缀文件不存在时回退到基础版
@@ -312,13 +402,12 @@ function loadMap(mapId, entrySource) {
     }, 0);
     document.getElementById('status').textContent = img.width + '×' + img.height + 'px' + (tw ? ' ' + tw : '');
   };
-  // 预加载夜间图
-  _nightImg = new Image();
-  _nightImg.onload = function() { if (_showNight) { drawMap(); drawGrid(); } };
-  _nightImg.onerror = function() {};
-  var nightPath = path.replace('.png', '_night.png');
-  _nightImg.src = nightPath;
+  img.src = '';
   img.src = path;
+  window._currentMapPath = path;
+
+  // 仅在当前为夜间模式时加载夜间图
+  if (_showNight) loadNightImage(path);
   if (entrySource && img.complete && img.naturalWidth > 0) {
     window._currentMapId = mapId;
     drawMap();
@@ -923,15 +1012,21 @@ document.getElementById('copyBtn').addEventListener('click', function() {
 document.getElementById('pluginBtn').addEventListener('click', function() {
   var modal = document.getElementById('pluginModal');
   modal.style.display = 'block';
-  // 通过 IPC 获取插件列表
+  // 渲染管线插件
   if (window.electronAPI && window.electronAPI.getPlugins) {
     electronAPI.getPlugins().then(function(list) {
       renderPluginList(list);
     }).catch(function() {
-      document.getElementById('pluginList').innerHTML = '<div style="color:#888;padding:8px;">无法获取插件列表（查看器不直接管理插件）</div>';
+      document.getElementById('pluginList').innerHTML = '<div style="color:#888;padding:8px;">无法获取渲染插件列表</div>';
     });
-  } else {
-    document.getElementById('pluginList').innerHTML = '<div style="color:#888;padding:8px;">插件由 render-maps.js 在渲染时加载，请在 scripts/plugins/ 目录下管理</div>';
+  }
+  // 查看器插件
+  if (window.electronAPI && window.electronAPI.getViewerPlugins) {
+    electronAPI.getViewerPlugins(PROJECT_DIR).then(function(cats) {
+      renderViewerPlugins(cats);
+    }).catch(function() {
+      document.getElementById('viewerPluginList').innerHTML = '<div style="color:#888;padding:8px;">无法获取查看器插件列表</div>';
+    });
   }
 });
 // 弹窗关闭/导入交给行内 onclick 处理
@@ -942,6 +1037,9 @@ function toggleViewerPlugin(input) {
   var c = input.checked, card = input.closest('[style*="display:flex"]');
   var name = input.getAttribute('data-pname');
   localStorage.setItem('plugin_' + name, c);
+  // 同步更新内存中的 _enabled，保持一致性
+  if (VIEWER_PLUGIN_MAP[name]) VIEWER_PLUGIN_MAP[name]._enabled = c;
+  if (!card) return;
   card.style.borderLeftColor = c ? '#4a8bc2' : '#444';
   input.nextElementSibling.style.background = c ? '#4a8bc2' : '#444';
   input.nextElementSibling.nextElementSibling.style.left = c ? '20px' : '2px';
@@ -998,6 +1096,60 @@ function renderPluginList(list) {
   document.getElementById('pluginList').innerHTML = html;
 }
 
+function pluginNameFromFile(f) {
+  // 先按 exact 匹配（VIEWER_PLUGIN_MAP key 是注册名）
+  // 再用文件名（去掉 .js）做 fallback
+  var byFile = f.replace(/\.js$/i, '');
+  for (var key in VIEWER_PLUGIN_MAP) {
+    if (key.toLowerCase() === byFile.toLowerCase()) return key;
+  }
+  return byFile;
+}
+
+function renderViewerPlugins(cats) {
+  var html = '';
+  // 全局查看器插件
+  if (cats.global && cats.global.length > 0) {
+    html += '<div style="color:#888;font-size:11px;font-weight:600;padding:12px 0 4px 0;border-top:1px solid #333;margin-top:12px;">🌐 全局查看器插件</div>';
+    cats.global.forEach(function(f) {
+      var pname = pluginNameFromFile(f);
+      var p = VIEWER_PLUGIN_MAP[pname];
+      var desc = p ? (p.description || '') : f;
+      var enabled = localStorage.getItem('plugin_' + (p ? p.name : pname)) !== 'false';
+      html += renderViewerPluginCard(p ? p.name : pname, desc, enabled);
+    });
+  }
+  // 项目查看器插件
+  if (cats.project && cats.project.length > 0) {
+    html += '<div style="color:#888;font-size:11px;font-weight:600;padding:12px 0 4px 0;border-top:1px solid #333;margin-top:12px;">📁 项目查看器插件</div>';
+    cats.project.forEach(function(f) {
+      var pname = pluginNameFromFile(f);
+      var p = VIEWER_PLUGIN_MAP[pname];
+      var desc = p ? (p.description || '') : f;
+      var enabled = localStorage.getItem('plugin_' + (p ? p.name : pname)) !== 'false';
+      html += renderViewerPluginCard(p ? p.name : pname, desc, enabled);
+    });
+  }
+  document.getElementById('viewerPluginList').innerHTML = html;
+}
+
+function renderViewerPluginCard(name, desc, enabled) {
+  var safe = esc(name);
+  return '<div class="plugin-card" style="margin-bottom:4px;">'
+    + '  <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#2a2a2a;border-radius:6px;border-left:3px solid ' + (enabled ? '#6a8bc2' : '#444') + ';">'
+    + '    <div style="flex:1;min-width:0;">'
+    + '      <div style="color:#ddd;font-size:12px;">' + safe + '</div>'
+    + '      <div style="color:#888;font-size:10px;">' + esc(desc) + '</div>'
+    + '    </div>'
+    + '    <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;cursor:pointer;">'
+    + '      <input type="checkbox" ' + (enabled ? 'checked' : '') + ' data-pname="' + safe + '" style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;" onchange="toggleViewerPlugin(this)">'
+    + '      <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + (enabled ? '#6a8bc2' : '#444') + ';border-radius:10px;transition:.2s;pointer-events:none;"></span>'
+    + '      <span style="position:absolute;top:2px;left:' + (enabled ? '18px' : '2px') + ';width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none;"></span>'
+    + '    </label>'
+    + '  </div>'
+    + '</div>';
+}
+
 function togglePluginExpand(name) {
   var k = 'plugin_expand_' + name;
   localStorage.setItem(k, localStorage.getItem(k) !== 'true');
@@ -1044,9 +1196,13 @@ function getPlmDir(mapId) {
 }
 
 function loadPlmLayers(mapId) {
+  // 释放旧 PLM 图层 Image 对象，避免内存泄漏
+  if (_plmLayers) {
+    _plmLayers.forEach(function(l) { if (l.img) { l.img.src = ''; l.img = null; } });
+  }
   _plmLayers = null;
   _plmLoaded = false;
-  fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  if (fxCanvas.width > 1) fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
   // 检查 ParallaxLayer 插件是否启用
   if (localStorage.getItem('plugin_ParallaxLayer') === 'false') return;
   var plmDir = getPlmDir(mapId);
@@ -1082,99 +1238,144 @@ function loadPlmLayers(mapId) {
 
 function drawFx() {
   fctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-  // 先把地图画到底层（无论是否有 PLM 图层）
   fctx.drawImage(mapCanvas, 0, 0);
-
   var w = fxCanvas.width, h = fxCanvas.height;
-  var totalPx = w * h * 4;
-  var baseData = fctx.getImageData(0, 0, w, h);
-  var bp = baseData.data;
+  if (w < 1 || h < 1) return;
 
-  // ParallaxLayer 插件关闭时跳过 PLM 合成
   var _plmPluginOn = localStorage.getItem('plugin_ParallaxLayer') !== 'false';
-  if (_plmLayers && _plmPluginOn) {
-    // 时段透明度：光照/阴影层随昼→夜渐变
-    var timeFactor = _toneEnabled ? ({day: 0, evening: 0.35, night: 1.0}[_timePeriod] || 0) : 1;
-    _plmLayers.forEach(function(layer) {
+  if (!_plmLayers || !_plmPluginOn) { applyCanvasTone(); return; }
+
+  var timeFactor = _toneEnabled ? ({day: 0, evening: 0, night: 1.0}[_timePeriod] || 0) : 1;
+
+  // 复用临时 canvas
+  if (!_fxTempCanvas || _fxTempCanvas.width !== w || _fxTempCanvas.height !== h) {
+    _fxTempCanvas = document.createElement('canvas');
+    _fxTempCanvas.width = w;
+    _fxTempCanvas.height = h;
+    _fxTempCtx = _fxTempCanvas.getContext('2d', { willReadFrequently: true });
+  }
+
+  var needBlend3 = false; // blend=3（乗算）必须逐像素
+
+  _plmLayers.forEach(function(layer) {
     if (!layer.img) return;
     if (_plmEnabled[layer.key] === false) return;
-    // 把 PLM 图层画到临时 canvas 取像素
-    var tmpC = document.createElement('canvas');
-    tmpC.width = w; tmpC.height = h;
-    var tmpCtx = tmpC.getContext('2d');
-    tmpCtx.globalAlpha = (layer.opacity || 255) / 255;
-    tmpCtx.drawImage(layer.img, 0, 0);
-    var layerData = tmpCtx.getImageData(0, 0, w, h);
-    var lp = layerData.data;
-    // 按混合模式逐像素合成
-    if (layer.blend === 1) {
-      // 光照（加算）: new = clamp(base + light * timeFactor, 0, 255)
-      for (var i = 0; i < totalPx; i += 4) {
-        var la = lp[i+3] / 255 * timeFactor;
-        if (la <= 0) continue;
-        bp[i]   = Math.min(bp[i]   + Math.round(lp[i]   * la), 255);
-        bp[i+1] = Math.min(bp[i+1] + Math.round(lp[i+1] * la), 255);
-        bp[i+2] = Math.min(bp[i+2] + Math.round(lp[i+2] * la), 255);
-        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
-      }
-    } else if (layer.blend === 2) {
-      // 阴影（alpha 混合）: new = base * (1-a) + shadow * a
-      for (var i = 0; i < totalPx; i += 4) {
-        var la2 = lp[i+3] / 255 * timeFactor;
-        if (la2 <= 0) continue;
-        var ia = 1 - la2;
-        bp[i]   = Math.round(bp[i]   * ia + lp[i]   * la2);
-        bp[i+1] = Math.round(bp[i+1] * ia + lp[i+1] * la2);
-        bp[i+2] = Math.round(bp[i+2] * ia + lp[i+2] * la2);
-        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
-      }
-    } else if (layer.blend === 3) {
-      // 乗算: new = base * overlay / 255
-      for (var i = 0; i < totalPx; i += 4) {
-        var la3 = lp[i+3] / 255;
-        if (la3 <= 0) continue;
-        bp[i]   = Math.round((bp[i]   * lp[i]   / 255) * la3 + bp[i]   * (1 - la3));
-        bp[i+1] = Math.round((bp[i+1] * lp[i+1] / 255) * la3 + bp[i+1] * (1 - la3));
-        bp[i+2] = Math.round((bp[i+2] * lp[i+2] / 255) * la3 + bp[i+2] * (1 - la3));
-        bp[i+3] = Math.max(bp[i+3], lp[i+3]);
-      }
+    var blend = layer.blend || 0;
+    var layerAlpha = (layer.opacity || 255) / 255;
+
+    if (blend === 3) { needBlend3 = true; return; }
+
+    // blend=0,1,2 → 全部用 GPU 加速
+    if (blend === 1 && timeFactor <= 0) return;
+    if (blend === 2 && timeFactor <= 0) return;
+
+    // 画到临时 canvas
+    _fxTempCtx.clearRect(0, 0, w, h);
+    _fxTempCtx.globalAlpha = (blend === 2) ? layerAlpha * timeFactor : layerAlpha;
+    _fxTempCtx.drawImage(layer.img, 0, 0);
+
+    if (blend === 1) {
+      fctx.globalCompositeOperation = 'lighter';
+      fctx.globalAlpha = timeFactor;
     } else {
-      // 正常（source-over）
+      fctx.globalCompositeOperation = 'source-over';
+      fctx.globalAlpha = 1;
+    }
+    fctx.drawImage(_fxTempCanvas, 0, 0);
+    fctx.globalCompositeOperation = 'source-over';
+    fctx.globalAlpha = 1;
+  });
+
+  // blend=3 逐像素 fallback（仅当有 blend=3 层时执行）
+  if (needBlend3) {
+    var totalPx = w * h * 4;
+    var baseData = fctx.getImageData(0, 0, w, h);
+    var bp = baseData.data;
+    _plmLayers.forEach(function(layer) {
+      if (!layer.img) return;
+      if (_plmEnabled[layer.key] === false) return;
+      if ((layer.blend || 0) !== 3) return;
+      _fxTempCtx.clearRect(0, 0, w, h);
+      _fxTempCtx.globalAlpha = (layer.opacity || 255) / 255;
+      _fxTempCtx.drawImage(layer.img, 0, 0);
+      var lp = _fxTempCtx.getImageData(0, 0, w, h).data;
       for (var i = 0; i < totalPx; i += 4) {
-        var la4 = lp[i+3] / 255;
-        if (la4 <= 0) continue;
-        var ia4 = 1 - la4;
-        bp[i]   = Math.round(bp[i]   * ia4 + lp[i]   * la4);
-        bp[i+1] = Math.round(bp[i+1] * ia4 + lp[i+1] * la4);
-        bp[i+2] = Math.round(bp[i+2] * ia4 + lp[i+2] * la4);
+        var la = lp[i+3] / 255;
+        if (la <= 0) continue;
+        var ia = 1 - la;
+        bp[i]   = Math.round((bp[i]   * lp[i]   / 255) * la + bp[i]   * ia);
+        bp[i+1] = Math.round((bp[i+1] * lp[i+1] / 255) * la + bp[i+1] * ia);
+        bp[i+2] = Math.round((bp[i+2] * lp[i+2] / 255) * la + bp[i+2] * ia);
         bp[i+3] = Math.max(bp[i+3], lp[i+3]);
+      }
+    });
+    // blend=3 fallback 路径中顺带叠加色调（省一次 getImageData）
+    if (_toneEnabled && typeof _currentTone !== "undefined" && _currentTone) {
+      var rOff = _currentTone[0], gOff = _currentTone[1], bOff = _currentTone[2];
+      var grayAmt = (_currentTone[3] || 0) / 255;
+      for (var ti = 0; ti < totalPx; ti += 4) {
+        var cr = bp[ti] + rOff, cg = bp[ti+1] + gOff, cb = bp[ti+2] + bOff;
+        cr = cr < 0 ? 0 : (cr > 255 ? 255 : cr);
+        cg = cg < 0 ? 0 : (cg > 255 ? 255 : cg);
+        cb = cb < 0 ? 0 : (cb > 255 ? 255 : cb);
+        if (grayAmt > 0) {
+          var gv = (cr + cg + cb) / 3;
+          cr = cr + (gv - cr) * grayAmt;
+          cg = cg + (gv - cg) * grayAmt;
+          cb = cb + (gv - cb) * grayAmt;
+        }
+        bp[ti] = Math.round(cr); bp[ti+1] = Math.round(cg); bp[ti+2] = Math.round(cb);
       }
     }
-  });
+    fctx.putImageData(baseData, 0, 0);
+  } else {
+    applyCanvasTone();
   }
-  // 色调合成（始终运行，在 PLM 之上叠加全局色调）
-  if (_toneEnabled && typeof _currentTone !== "undefined" && _currentTone) {
-    var rOff = _currentTone[0], gOff = _currentTone[1], bOff = _currentTone[2];
-    var grayAmt = (_currentTone[3] || 0) / 255;
+}
+
+// 色调合成（仅在无需逐像素 PLM 时用，轻量 GPU 叠加）
+function applyCanvasTone() {
+  if (!_toneEnabled || typeof _currentTone === "undefined" || !_currentTone) return;
+  var rOff = _currentTone[0], gOff = _currentTone[1], bOff = _currentTone[2];
+  var grayAmt = (_currentTone[3] || 0) / 255;
+  if (rOff === 0 && gOff === 0 && bOff === 0 && grayAmt === 0) return;
+  var w = fxCanvas.width, h = fxCanvas.height;
+  if (w < 1 || h < 1) return;
+  var totalPx = w * h * 4;
+  var d = fctx.getImageData(0, 0, w, h);
+  var bp = d.data;
+  if (grayAmt > 0) {
+    // 带灰度路径（分支提出循环，避免每像素判断）
     for (var ti = 0; ti < totalPx; ti += 4) {
-      var cr = bp[ti] + rOff;
-      var cg = bp[ti+1] + gOff;
-      var cb = bp[ti+2] + bOff;
+      var cr = bp[ti] + rOff, cg = bp[ti+1] + gOff, cb = bp[ti+2] + bOff;
       cr = cr < 0 ? 0 : (cr > 255 ? 255 : cr);
       cg = cg < 0 ? 0 : (cg > 255 ? 255 : cg);
       cb = cb < 0 ? 0 : (cb > 255 ? 255 : cb);
-      if (grayAmt > 0) {
-        var gv = (cr + cg + cb) / 3;
-        cr = cr + (gv - cr) * grayAmt;
-        cg = cg + (gv - cg) * grayAmt;
-        cb = cb + (gv - cb) * grayAmt;
-      }
-      bp[ti] = Math.round(cr);
-      bp[ti+1] = Math.round(cg);
-      bp[ti+2] = Math.round(cb);
+      var gv = (cr + cg + cb) / 3;
+      bp[ti]   = Math.round(cr + (gv - cr) * grayAmt);
+      bp[ti+1] = Math.round(cg + (gv - cg) * grayAmt);
+      bp[ti+2] = Math.round(cb + (gv - cb) * grayAmt);
+    }
+  } else {
+    // 纯偏移（无灰度），V8 对 Math.min/max 有专门优化
+    for (var ti = 0; ti < totalPx; ti += 4) {
+      bp[ti]   = Math.max(0, Math.min(255, bp[ti]   + rOff));
+      bp[ti+1] = Math.max(0, Math.min(255, bp[ti+1] + gOff));
+      bp[ti+2] = Math.max(0, Math.min(255, bp[ti+2] + bOff));
     }
   }
-  fctx.putImageData(baseData, 0, 0);
+  fctx.putImageData(d, 0, 0);
+}
+
+// 夜间图懒加载：只在需要时解码，切回白天时释放
+function loadNightImage(basePath) {
+  if (!basePath) { _nightImg.src = ''; return; }
+  var nightPath = basePath.replace('.png', '_night.png');
+  if (_nightImg.src === nightPath) return; // 已加载过（成功或失败过都不重试）
+  _nightImg.src = '';
+  _nightImg.onload = function() { if (_showNight) { drawMap(); drawGrid(); } };
+  _nightImg.onerror = function() {}; // 文件不存在，静默忽略
+  _nightImg.src = nightPath;
 }
 
 // 特效开关
@@ -1262,9 +1463,17 @@ document.getElementById('timeSelect').addEventListener('change', function() {
   _timePeriod = this.value;
   _showNight = (_timePeriod === 'night');
   localStorage.setItem('rpgmaper_time', _timePeriod);
+  // 懒加载夜间图：切夜间时加载，切出时释放
+  if (_showNight) {
+    var p = window._currentMapPath;
+    if (p) loadNightImage(p);
+  } else {
+    _nightImg.src = ''; // 释放夜间图解码数据
+  }
   drawMap();
   drawGrid();
   applyMapTone();
+  fireViewerHook('timeChange', { period: _timePeriod });
 });
 
 // Patch loadMap 时段切换时也重绘色调
@@ -1295,9 +1504,10 @@ loadData();
 <div id="pluginModal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);">
   <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#222;border:1px solid #444;border-radius:12px;padding:24px;width:520px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
     <h2 style="color:#ddd;font-size:16px;margin-bottom:16px;">🧩 插件管理</h2>
-    <div id="pluginList" style="margin-bottom:16px;">
-      <div style="color:#666;font-style:italic;padding:8px;">正在加载插件列表…</div>
+    <div id="pluginList" style="margin-bottom:8px;">
+      <div style="color:#666;font-style:italic;padding:8px;">正在加载渲染插件列表…</div>
     </div>
+    <div id="viewerPluginList" style="margin-bottom:12px;"></div>
     <div style="display:flex;gap:8px;border-top:1px solid #333;padding-top:12px;">
       <button style="flex:1;padding:6px 0;background:#3a5a3a;border:none;border-radius:6px;color:#aca;cursor:pointer;font-size:13px;" onclick="importPlugin()">📥 导入插件</button>
       <button style="flex:1;padding:6px 0;background:#3a3a5a;border:none;border-radius:6px;color:#aac;cursor:pointer;font-size:13px;" onclick="document.getElementById('pluginHelpModal').style.display='block'">📖 帮助</button>

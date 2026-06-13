@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadMapData: (gameDir, mapId) => ipcRenderer.invoke('load-map-data', gameDir, mapId),
   loadSwitches: (gameDir) => ipcRenderer.invoke('load-switches', gameDir),
   loadViewerPlugins: (projectDir) => ipcRenderer.invoke('load-viewer-plugins', projectDir),
+  getViewerPlugins: (projectDir) => ipcRenderer.invoke('get-viewer-plugins', projectDir),
 
   // 事件
   onProjectAdded: (cb) => ipcRenderer.on('project-added', (e, d) => cb(d)),

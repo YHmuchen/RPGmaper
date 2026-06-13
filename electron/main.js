@@ -246,7 +246,11 @@ ipcMain.handle('delete-project', (event, name) => {
   return scanProjects();
 });
 
-ipcMain.handle('clear-maps', (event, name) => {
+ipcMain.handle('clear-maps', (event, projectId) => {
+  var index = loadProjects();
+  var entry = index[String(projectId)];
+  if (!entry || !entry.name) return scanProjects();
+  var name = entry.name;
   const dir = path.resolve(PROJECTS_DIR, name);
   if (!dir.startsWith(path.resolve(PROJECTS_DIR))) return scanProjects();
   const mapsDir = path.join(dir, 'maps');
@@ -284,18 +288,65 @@ ipcMain.handle('open-viewer', (event, projectId) => {
 });
 
 ipcMain.handle('load-viewer-plugins', (event, projectDir) => {
-  var dirs = [
-    path.join(__dirname, 'renderer', 'viewer-plugins'),
-    path.join(projectDir, 'viewer-plugins'),
-  ];
+  var projectPlDir = path.join(projectDir, 'viewer-plugins');
+  var scriptsPlugins = path.join(__dirname, '..', 'scripts', 'plugins');
+  var seen = {};
   var result = [];
-  dirs.forEach(function(d) {
-    if (fs.existsSync(d)) {
-      fs.readdirSync(d).filter(function(f) { return f.endsWith('.js'); }).forEach(function(f) {
-        if (result.indexOf(f) < 0) result.push(f);
-      });
-    }
+
+  function addFromDir(dir, baseUrl) {
+    if (!fs.existsSync(dir)) return;
+    fs.readdirSync(dir).filter(function(f) { return f.endsWith('.js'); }).forEach(function(f) {
+      if (seen[f]) return;
+      seen[f] = true;
+      result.push({ name: f, url: baseUrl + f });
+    });
+  }
+
+  function addViewerPlugins(dir, baseUrl) {
+    if (!fs.existsSync(dir)) return;
+    fs.readdirSync(dir).filter(function(f) { return f.endsWith('.js'); }).forEach(function(f) {
+      if (seen[f]) return;
+      try {
+        var content = fs.readFileSync(path.join(dir, f), 'utf8');
+        if (/\btype\s*:\s*['"]viewer['"]/.test(content)) {
+          seen[f] = true;
+          result.push({ name: f, url: baseUrl + f });
+        }
+      } catch(e) { console.error('读取查看器插件文件失败: ' + path.join(dir, f), e); }
+    });
+  }
+
+  // scripts/plugins/ 中的查看器插件（全局）
+  addViewerPlugins(scriptsPlugins, 'file:///' + scriptsPlugins.replace(/\\/g, '/') + '/');
+  // 项目插件
+  addFromDir(projectPlDir, 'file:///' + projectPlDir.replace(/\\/g, '/') + '/');
+  return result;
+});
+
+ipcMain.handle('get-viewer-plugins', (event, projectDir) => {
+  var projectPlDir = path.join(projectDir, 'viewer-plugins');
+  var scriptsPlugins = path.join(__dirname, '..', 'scripts', 'plugins');
+  var result = { global: [], project: [] };
+
+  function listFiles(dir) {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter(function(f) { return f.endsWith('.js'); });
+  }
+
+  function isViewerPlugin(dir, f) {
+    try {
+      var content = fs.readFileSync(path.join(dir, f), 'utf8');
+      return /\btype\s*:\s*['"]viewer['"]/.test(content);
+    } catch(e) { return false; }
+  }
+
+  // scripts/plugins/ 中的查看器插件 → 全局
+  listFiles(scriptsPlugins).forEach(function(f) {
+    if (isViewerPlugin(scriptsPlugins, f)) result.global.push(f);
   });
+
+  // 项目插件
+  result.project = listFiles(projectPlDir);
   return result;
 });
 

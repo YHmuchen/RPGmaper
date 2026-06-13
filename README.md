@@ -4,6 +4,10 @@
 
 从 RPG Maker MZ/MV 游戏文件离线提取 tileset、渲染地图、分析传送点的工具。
 
+[![EN](https://img.shields.io/badge/English-README-blue)](docs/README_EN.md)
+
+</div>
+
 [![Node](https://img.shields.io/badge/Node-%3E%3D18-339933?logo=node.js)](https://nodejs.org)
 [![Sharp](https://img.shields.io/badge/%E6%B8%B2%E6%9F%93-Sharp-99c24c)](https://sharp.pixelplumbing.com)
 [![Electron](https://img.shields.io/badge/%E6%A1%8C%E9%9D%A2-Electron-47848f?logo=electron)](https://www.electronjs.org)
