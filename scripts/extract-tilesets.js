@@ -60,8 +60,12 @@ function main() {
     process.exit(1);
   }
 
-  // 确定项目名（从游戏目录名）
-  const projectName = path.basename(gameDir).replace(/[\s_]+$/, '');
+  // 确定项目名（从游戏目录名，www 时回退到上级目录）
+  const projectName = (function() {
+    const leaf = path.basename(gameDir);
+    if (leaf.toLowerCase() === 'www') return path.basename(path.dirname(gameDir)).replace(/[\s_]+$/, '');
+    return leaf.replace(/[\s_]+$/, '');
+  })();
   const outDir = args[1] || path.resolve(__dirname, '..', 'maps', 'projects', projectName, 'tilesets');
 
   // 加载 tilesets 索引
@@ -84,6 +88,48 @@ function main() {
 
   fs.mkdirSync(outDir, { recursive: true });
 
+  // 预扫描 tileset 目录，建立精确匹配失败时的模糊查找表
+  var fuzzyMap = null;
+  function buildFuzzyMap() {
+    if (fuzzyMap) return fuzzyMap;
+    fuzzyMap = {};
+    try {
+      var files = fs.readdirSync(tilesetDir);
+      files = files.filter(function(f) { return f !== '.' && f !== '..'; });
+      for (var fi = 0; fi < files.length; fi++) {
+        var f = files[fi];
+        var base = f.replace(/\.(png_|rpgmvp|png)$/i, '').toLowerCase();
+        fuzzyMap[base] = tilesetDir + f;
+      }
+    } catch(e) {}
+    return fuzzyMap;
+  }
+
+  function fuzzyMatch(name) {
+    var map = buildFuzzyMap();
+    var nl = name.toLowerCase();
+    // 精确匹配（忽略大小写）
+    if (map[nl]) return map[nl];
+    var keys = Object.keys(map);
+    var candidates = [];
+    // 请求名是某个文件名的子串
+    for (var ki = 0; ki < keys.length; ki++) {
+      if (keys[ki].indexOf(nl) !== -1) candidates.push(keys[ki]);
+    }
+    if (candidates.length === 1) return map[candidates[0]];
+    // 多个候选时取最短的（最精确的匹配）
+    if (candidates.length > 1) {
+      candidates.sort(function(a, b) { return a.length - b.length; });
+      return map[candidates[0]];
+    }
+    // 文件名是请求名的子串
+    for (var kj = 0; kj < keys.length; kj++) {
+      if (nl.indexOf(keys[kj]) !== -1) candidates.push(keys[kj]);
+    }
+    if (candidates.length === 1) return map[candidates[0]];
+    return null;
+  }
+
   let ok = 0, fail = 0;
   const names = Array.from(neededNames).sort();
 
@@ -96,17 +142,29 @@ function main() {
     const name = names[i];
     process.stdout.write(`[${i + 1}/${names.length}] ${name} `);
 
-    // 尝试加密文件 (.png_) 和未加密文件 (.png)
+    // 尝试加密文件 (.png_ / .rpgmvp) 和未加密文件 (.png)
     const encPath = tilesetDir + name + '.png_';
+    const rpgmvpPath = tilesetDir + name + '.rpgmvp';
     const plainPath = tilesetDir + name + '.png';
 
     let data = decryptRPGMVFile(encPath, keyBytes);
+    if (!data) {
+      data = decryptRPGMVFile(rpgmvpPath, keyBytes);
+    }
     if (!data) {
       data = decryptRPGMVFile(plainPath, keyBytes);
     }
     if (!data) {
       // 可能是 Overlay 或其他格式
       data = decryptRPGMVFile(tilesetDir + name, keyBytes);
+    }
+    if (!data) {
+      // 模糊匹配：文件名与 Tilesets.json 不完全一致
+      var fuzzyPath = fuzzyMatch(name);
+      if (fuzzyPath) {
+        process.stdout.write('→ 模糊匹配 ');
+        data = decryptRPGMVFile(fuzzyPath, keyBytes);
+      }
     }
 
     if (data) {
@@ -130,6 +188,25 @@ function main() {
   }
 
   console.log(`\n完成! ${ok} 成功, ${fail} 失败`);
+
+  // 注册到 projects.json（在 exit 之前，保证即使失败也注册）
+  registerProject(projectName, gameDir);
+
+  if (fail > 0) process.exit(1);
+}
+
+function registerProject(projectName, gameDir) {
+  const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
+  var idx = {};
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8').replace(/^﻿/, '')); } catch(e) {}
+  var key = Object.keys(idx).find(k => idx[k].name === projectName);
+  if (key) {
+    if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }
+  } else {
+    var maxId = Object.keys(idx).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+    idx[String(maxId + 1)] = { name: projectName, gameDir: gameDir };
+    fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8');
+  }
 }
 
 main();

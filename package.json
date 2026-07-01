@@ -11,6 +11,6 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "electron": "^42.3.2"
+    "electron": "^42.5.1"
   }
 }

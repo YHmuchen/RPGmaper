@@ -56,7 +56,7 @@ function createWindow() {
 // ─── 项目管理 ─────────────────────────────────────────────────
 function loadProjects() {
   if (!fs.existsSync(PROJECTS_JSON)) return {};
-  try { return JSON.parse(fs.readFileSync(PROJECTS_JSON, 'utf8')); } catch(e) { return {}; }
+  try { return JSON.parse(fs.readFileSync(PROJECTS_JSON, 'utf8').replace(/^﻿/, '')); } catch(e) { return {}; }
 }
 
 function saveProjects(data) {
@@ -119,7 +119,11 @@ async function addProject() {
     return;
   }
 
-  const projectName = path.basename(gameDir).replace(/[\s_]+$/, '');
+  const projectName = (function() {
+    const leaf = path.basename(gameDir);
+    if (leaf.toLowerCase() === 'www') return path.basename(path.dirname(gameDir)).replace(/[\s_]+$/, '');
+    return leaf.replace(/[\s_]+$/, '');
+  })();
   const projectDir = path.join(PROJECTS_DIR, projectName);
   fs.mkdirSync(path.join(projectDir, 'tilesets'), { recursive: true });
 

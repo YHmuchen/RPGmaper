@@ -17,6 +17,7 @@ watch-game.bat
 docs/connections.json
 docs/visited_data.js
 docs/map_sizes.json
+docs/transfers_data.js
 
 # 批处理快捷键
 render-maps.bat
@@ -32,3 +33,6 @@ Thumbs.db
 .kagent/
 .vscode/CLAUDE.md
 CLAUDE.md
+
+# 本地临时文件（不提交）
+_local/
