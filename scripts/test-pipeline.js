@@ -32,9 +32,15 @@ function runScript(scriptPath, args) {
   };
 }
 
+function getProjectName(gameDir) {
+  const leaf = path.basename(gameDir);
+  if (leaf.toLowerCase() === 'www') return path.basename(path.dirname(gameDir)).replace(/[\s_]+$/, '');
+  return leaf.replace(/[\s_]+$/, '');
+}
+
 function getProjectDir(gameDir) {
   const base = path.join(PROJECT_ROOT, 'maps', 'projects');
-  const name = path.basename(gameDir).replace(/[\s_]+$/, '');
+  const name = getProjectName(gameDir);
   return { base, name, dir: path.join(base, name) };
 }
 
@@ -227,7 +233,24 @@ async function main() {
   console.log(`\n${status}  |  ${name}  |  tileset ${report.tilesets.exported}/${report.tilesets.expected}  |  地图 ${report.maps.rendered}/${report.maps.expected}  |  ${(report.duration / 1000).toFixed(1)}s`);
   console.log(`报告: ${reportPath}`);
 
+  // 注册到 projects.json
+  registerProject(name, gameDir);
+
   process.exit(report.pass ? 0 : 1);
+}
+
+function registerProject(projectName, gameDir) {
+  const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
+  var idx = {};
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8')); } catch(e) {}
+  var key = Object.keys(idx).find(k => idx[k].name === projectName);
+  if (key) {
+    if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }
+  } else {
+    var maxId = Object.keys(idx).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+    idx[String(maxId + 1)] = { name: projectName, gameDir: gameDir };
+    fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8');
+  }
 }
 
 main().catch(e => {

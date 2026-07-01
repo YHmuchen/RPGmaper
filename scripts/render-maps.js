@@ -141,7 +141,12 @@ global['TIME_VARIABLE_31'] = isNaN(_tv) ? 1 : _tv;
 global['SWITCH_31'] = process.env.SWITCH_31 === '1' || false;
 
 // 项目目录：按项目名分开放，避免混杂
-const PROJECT_NAME = process.env.PROJECT_NAME || path.basename(GAME_DIR).replace(/[\s_]+$/, '');
+const PROJECT_NAME = process.env.PROJECT_NAME || (function() {
+  const leaf = path.basename(GAME_DIR);
+  if (leaf.toLowerCase() === 'www') return path.basename(path.dirname(GAME_DIR)).replace(/[\s_]+$/, '');
+  return leaf.replace(/[\s_]+$/, '');
+})();
+
 const PROJECT_DIR = path.join(path.resolve(__dirname, '..', 'maps', 'projects'), PROJECT_NAME);
 
 // 从 projects.json 查找项目数字 ID（未通过环境变量提供时自动查表）
@@ -213,21 +218,28 @@ async function loadTS(name) {
   return tsCache[name];
 }
 
-// ─── 视差图解密 ────────────────────────────────────────────────
+// ─── 视差图解密（支持 .png_ / .rpgmvp / .png）─────────────────
 function decryptParallaxImage(name) {
-  const filePath = PARALLAX_IMG_DIR + name + '.png_';
-  if (!fs.existsSync(filePath)) return null;
-  const buf = fs.readFileSync(filePath);
-  // 验证文件头: RPGMV + 12 字节头
-  const header = Array.from(new Uint8Array(buf.slice(0, 16)));
-  const expected = [0x52,0x50,0x47,0x4d,0x56,0,0,0,0,0x03,0x01,0,0,0,0,0];
-  if (!header.every((b, i) => b === expected[i])) return null;
-  // 解密: 对 body 前 16 字节做 XOR
-  const body = Buffer.from(buf.slice(16));
-  for (let i = 0; i < 16 && i < body.length; i++) {
-    body[i] ^= ENC_KEY_BYTES[i];
+  const extensions = ['.png_', '.rpgmvp', '.png'];
+  for (const ext of extensions) {
+    const filePath = PARALLAX_IMG_DIR + name + ext;
+    if (!fs.existsSync(filePath)) continue;
+    const buf = fs.readFileSync(filePath);
+    // 验证文件头: RPGMV + 12 字节头
+    const header = Array.from(new Uint8Array(buf.slice(0, 16)));
+    const expected = [0x52,0x50,0x47,0x4d,0x56,0,0,0,0,0x03,0x01,0,0,0,0,0];
+    if (header.every((b, i) => b === expected[i])) {
+      // 加密文件 — 解密
+      const body = Buffer.from(buf.slice(16));
+      for (let i = 0; i < 16 && i < body.length; i++) {
+        body[i] ^= ENC_KEY_BYTES[i];
+      }
+      return body;
+    }
+    // 未加密文件 — 直接返回
+    return buf;
   }
-  return body;
+  return null;
 }
 
 // 检查地图是否完全无 tile（纯视差地图）
@@ -433,11 +445,13 @@ const sprCache = {};
 
 async function loadSprite(name) {
   if (sprCache[name]) return sprCache[name];
-  let fp = CHARACTER_IMG_DIR + name + '.png';
-  if (!fs.existsSync(fp)) {
-    fp = CHARACTER_IMG_DIR + name + '.png_';
-    if (!fs.existsSync(fp)) return null;
+  const exts = ['.png', '.png_', '.rpgmvp'];
+  let fp = null;
+  for (const ext of exts) {
+    const testPath = CHARACTER_IMG_DIR + name + ext;
+    if (fs.existsSync(testPath)) { fp = testPath; break; }
   }
+  if (!fp) return null;
   try {
     let buf;
     if (fp.endsWith('.png_')) {
@@ -920,6 +934,25 @@ async function main() {
   }
 
   console.log(`\n完成! ${ok} 成功, ${fail} 失败`);
+
+  // 注册到 projects.json
+  registerProject(PROJECT_NAME, GAME_DIR);
+
+  process.exit(fail > 0 ? 1 : 0);
+}
+
+function registerProject(projectName, gameDir) {
+  const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
+  var idx = {};
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8')); } catch(e) {}
+  var key = Object.keys(idx).find(k => idx[k].name === projectName);
+  if (key) {
+    if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }
+  } else {
+    var maxId = Object.keys(idx).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+    idx[String(maxId + 1)] = { name: projectName, gameDir: gameDir };
+    fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8');
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

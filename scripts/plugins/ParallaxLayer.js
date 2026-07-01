@@ -59,8 +59,14 @@ module.exports = {
       var meta = [];
       for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
-        var fp = path.join(gameDir, 'img', 'parallaxes', layer.file + '.png_');
-        if (!fs.existsSync(fp)) continue;
+        // 尝试 .png_ / .rpgmvp / .png
+        var extsPLM = ['.png_', '.rpgmvp', '.png'];
+        var fp = null;
+        for (var pei = 0; pei < extsPLM.length; pei++) {
+          var testFp = path.join(gameDir, 'img', 'parallaxes', layer.file + extsPLM[pei]);
+          if (fs.existsSync(testFp)) { fp = testFp; break; }
+        }
+        if (!fp) continue;
 
         var raw = fs.readFileSync(fp);
         var h = Array.from(new Uint8Array(raw.slice(0, 16)));

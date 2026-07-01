@@ -21,7 +21,7 @@ const GAME_DIR = (() => {
 const OUT_FILE = path.resolve(__dirname, '..', 'docs', 'transfers_data.js');
 
 function readJSON(p) {
-  return JSON.parse(fs.readFileSync(p, 'utf8'));
+  return JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
 }
 
 // 加载全部公共事件
@@ -198,7 +198,9 @@ function main() {
 
   // 输出到项目目录
   try {
-    var pj = path.join(path.dirname(__dirname), 'maps', 'projects', path.basename(GAME_DIR).replace(/[\s_]+$/, ''));
+    var leaf = path.basename(GAME_DIR);
+    var pn = leaf.toLowerCase() === 'www' ? path.basename(path.dirname(GAME_DIR)).replace(/[\s_]+$/, '') : leaf.replace(/[\s_]+$/, '');
+    var pj = path.join(path.dirname(__dirname), 'maps', 'projects', pn);
     fs.writeFileSync(path.join(pj, 'transfers_data.js'), content, 'utf8');
   } catch(e) {}
 
@@ -218,6 +220,23 @@ function main() {
   console.log('  公共事件:', stats.totalCE);
   console.log('  合计:', stats.total);
   console.log('  输出:', path.relative(process.cwd(), OUT_FILE), '(' + stats.fileSize + ')');
+
+  // 注册到 projects.json
+  registerProject(pn, GAME_DIR);
+}
+
+function registerProject(projectName, gameDir) {
+  const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
+  var idx = {};
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8')); } catch(e) {}
+  var key = Object.keys(idx).find(k => idx[k].name === projectName);
+  if (key) {
+    if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }
+  } else {
+    var maxId = Object.keys(idx).reduce(function(m, k) { var n = parseInt(k, 10); return n > m ? n : m; }, 0);
+    idx[String(maxId + 1)] = { name: projectName, gameDir: gameDir };
+    fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8');
+  }
 }
 
 main();
