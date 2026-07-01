@@ -242,7 +242,7 @@ async function main() {
 function registerProject(projectName, gameDir) {
   const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
   var idx = {};
-  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8')); } catch(e) {}
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8').replace(/^﻿/, '')); } catch(e) {}
   var key = Object.keys(idx).find(k => idx[k].name === projectName);
   if (key) {
     if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }

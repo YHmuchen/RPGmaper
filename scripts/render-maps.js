@@ -454,7 +454,7 @@ async function loadSprite(name) {
   if (!fp) return null;
   try {
     let buf;
-    if (fp.endsWith('.png_')) {
+    if (fp.endsWith('.png_') || fp.endsWith('.rpgmvp')) {
       buf = fs.readFileSync(fp);
       const header = Array.from(new Uint8Array(buf.slice(0, 16)));
       const expected = [0x52,0x50,0x47,0x4d,0x56,0,0,0,0,0x03,0x01,0,0,0,0,0];
@@ -944,7 +944,7 @@ async function main() {
 function registerProject(projectName, gameDir) {
   const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
   var idx = {};
-  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8')); } catch(e) {}
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8').replace(/^﻿/, '')); } catch(e) {}
   var key = Object.keys(idx).find(k => idx[k].name === projectName);
   if (key) {
     if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }

@@ -110,15 +110,23 @@ function main() {
     var nl = name.toLowerCase();
     // 精确匹配（忽略大小写）
     if (map[nl]) return map[nl];
-    // 请求名是某个文件名的子串
     var keys = Object.keys(map);
+    var candidates = [];
+    // 请求名是某个文件名的子串
     for (var ki = 0; ki < keys.length; ki++) {
-      if (keys[ki].indexOf(nl) !== -1) return map[keys[ki]];
+      if (keys[ki].indexOf(nl) !== -1) candidates.push(keys[ki]);
+    }
+    if (candidates.length === 1) return map[candidates[0]];
+    // 多个候选时取最短的（最精确的匹配）
+    if (candidates.length > 1) {
+      candidates.sort(function(a, b) { return a.length - b.length; });
+      return map[candidates[0]];
     }
     // 文件名是请求名的子串
     for (var kj = 0; kj < keys.length; kj++) {
-      if (nl.indexOf(keys[kj]) !== -1) return map[keys[kj]];
+      if (nl.indexOf(keys[kj]) !== -1) candidates.push(keys[kj]);
     }
+    if (candidates.length === 1) return map[candidates[0]];
     return null;
   }
 
@@ -180,16 +188,17 @@ function main() {
   }
 
   console.log(`\n完成! ${ok} 成功, ${fail} 失败`);
-  if (fail > 0) process.exit(1);
 
-  // 注册到 projects.json
+  // 注册到 projects.json（在 exit 之前，保证即使失败也注册）
   registerProject(projectName, gameDir);
+
+  if (fail > 0) process.exit(1);
 }
 
 function registerProject(projectName, gameDir) {
   const pjPath = path.resolve(__dirname, '..', 'maps', 'projects', 'projects.json');
   var idx = {};
-  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8')); } catch(e) {}
+  try { idx = JSON.parse(fs.readFileSync(pjPath, 'utf8').replace(/^﻿/, '')); } catch(e) {}
   var key = Object.keys(idx).find(k => idx[k].name === projectName);
   if (key) {
     if (!idx[key].gameDir) { idx[key].gameDir = gameDir; fs.writeFileSync(pjPath, JSON.stringify(idx, null, 2), 'utf8'); }
